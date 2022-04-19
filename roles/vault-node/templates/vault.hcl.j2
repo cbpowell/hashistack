@@ -1,0 +1,28 @@
+ui = true
+
+cluster_addr  = "https://{{ ansible_default_ipv4.address }}:8201"
+api_addr      = "https://{{ ansible_default_ipv4.address }}:8200"
+disable_mlock = true
+
+storage "raft" {
+  path    = "/opt/vault/data"
+  node_id = "{{ inventory_hostname }}"
+  
+{% for host in groups.vault_nodes|difference(inventory_hostname) %}
+  retry_join {
+    leader_api_addr = "http://{{ hostvars[host]['ansible_default_ipv4']['address'] }}:8200"
+  }
+{% endfor %}
+}
+
+plugin_directory = "/opt/vault/plugins"
+
+service_registration "consul" {
+  token = "{{ lookup('vars', 'consul_' + inventory_hostname + '_vault_node_token') }}"
+  service_tags = "traefik.enable=true, traefik.http.routers.vault.tls=true, traefik.http.routers.vault.tls.certresolver=le, traefik.http.routers.vault.entrypoints=websecure, traefik.http.routers.vault.rule=Host(`vault.{{ net_subdomain }}`), traefik.http.services.vault.loadbalancer.server.port=8200, traefik.http.services.vault.loadbalancer.sticky.cookie=true"
+}
+
+listener "tcp" {
+  address = "0.0.0.0:8200"
+  tls_disable = 1
+}

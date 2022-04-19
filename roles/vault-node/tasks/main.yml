@@ -1,0 +1,102 @@
+---
+# tasks file for vault-node
+
+# Core setup
+- name: Add hashicorp apt key
+  ansible.builtin.apt_key:
+    url: https://apt.releases.hashicorp.com/gpg
+    state: present
+  become: yes
+    
+- name: Add hashicorp apt repo
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+    state: present
+  become: yes
+  
+- name: Update repositories cache and install Vault package
+  apt:
+    name: vault
+    update_cache: yes
+  become: yes
+  
+- name: Upgrade Vault package if specified
+  apt:
+    name: vault
+    update_cache: no
+    state: latest
+  become: yes
+  tags: upgrade
+  
+- name: Configure Vault configuration directory
+  file:
+    path: /etc/vault.d/
+    state: directory
+  become: yes
+  
+- name: Configure Vault data directory
+  file:
+    path: /opt/vault
+    state: directory
+  become: yes
+  
+- name: Configure Vault plugin directory
+  file:
+    path: /opt/vault/plugins
+    state: directory
+  become: yes
+    
+- name: Template vault.service to system
+  ansible.builtin.template:
+    src: vault.service.j2
+    dest: /lib/systemd/system/vault.service
+  become: yes
+  notify: Reload systemctl
+  
+- name: Flush handlers
+  meta: flush_handlers
+  
+- name: Configure vault systemd service
+  ansible.builtin.systemd:
+    name: vault
+    enabled: "{{ vault_enable | default(true) | bool }}"
+    state: "{{ 'started' if vault_start | default(true) else 'stopped' }}"
+    masked: no
+  become: yes
+
+- name: Template config.hcl.j2 to /etc/vault.d/config.hcl
+  ansible.builtin.template:
+    src: vault.hcl.j2
+    dest: /etc/vault.d/vault.hcl
+  become: yes
+  notify: Restart Vault
+
+    
+### Vault Unseal setup
+### https://github.com/lrstanley/vault-unseal
+- name: Template vault-unseal to /etc/vault-unseal.yaml
+  ansible.builtin.template:
+    src: vault-unseal.yaml.j2
+    dest: /etc/vault-unseal.yaml
+    mode: '0600'
+  become: yes
+  vars:
+    start: "{{ groups['vault_nodes'].index(inventory_hostname) }}"
+    end: "{{ (start | int) + (vault_tokens_required - 1) }}"
+  notify: Restart vault-unseal
+  
+- name: Check if vault-unseal is installed
+  command: dpkg-query -W vault-unseal
+  register: vault_unseal_installed
+  # Check return code
+  failed_when: vault_unseal_installed.rc > 1
+  changed_when: vault_unseal_installed.rc == 1
+
+- name: Install vault-unseal
+  apt:
+    deb: "{{ vault_unseal_url }}"
+    state: present
+  become: yes
+  when: vault_unseal_installed.rc == 1
+    
+  

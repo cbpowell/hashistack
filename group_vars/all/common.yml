@@ -1,0 +1,56 @@
+---
+# Home Domain
+org_name: theta142
+net_domain: theta142.com
+net_subdomain: "lab.{{ net_domain }}"
+home_tz: "America/Phoenix"
+
+# Hashicorp
+## Nomad
+dc_name: empiricist
+
+## Vault
+vault:
+  enabled: true
+  address: "http://vault.service.consul:8200"
+  plugins:
+    - https://github.com/1Password/vault-plugin-secrets-onepassword/releases/download/v1.0.0/vault-plugin-secrets-onepassword_1.0.0_linux_amd64.zip
+
+# Democratic CSI
+democratic_csi:
+  vers: v1.6.2
+
+# Traefik
+traefik:
+  vers: v2.6
+  subdomain: "{{ net_subdomain }}"
+  log_level: ERROR
+  default_tags:
+    - nomad
+    - vault
+    - direct
+    - web
+  publish_tags:
+    - git # Gitea
+    - changes # changedetection.io
+    - mqtt
+    - uptime # uptimekuma
+
+# Gitea
+gitea:
+  vers: "1.16.5"
+
+# Storage
+# Try not to go through VLANS for iSCSI!
+bunker_host: "10.7.3.9"
+fundament_host: "10.7.3.9"
+
+# # Common locations
+# docker_shared_volume: "{{ ansible_env.HOME }}/docker/shared"
+
+# Consul
+consul_ui_hosts:
+  - '10.7.3.2'
+  - '10.7.3.3'
+  - '10.7.3.4'
+consul_ui_port: '8500'

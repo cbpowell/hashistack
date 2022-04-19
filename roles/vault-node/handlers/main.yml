@@ -1,0 +1,19 @@
+---
+# handlers file for vault-node
+- name: Restart Vault
+  ansible.builtin.systemd:
+    name: vault
+    state: restarted
+  become: yes
+  
+- name: Reload systemctl
+  ansible.builtin.systemd:
+    name: vault
+    state: restarted
+  become: yes
+  
+- name: Restart vault-unseal
+  ansible.builtin.systemd:
+    name: vault-unseal
+    state: restarted
+  become: yes

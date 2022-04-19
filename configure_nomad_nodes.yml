@@ -1,0 +1,33 @@
+---
+
+- name: Configure Nomad nodes
+  gather_facts: true
+  hosts:
+    - nomad_servers
+    - nomad_clients
+  roles:
+    - role: nomad-node
+  tags: [ nomad ]
+
+- name: Configure Nomad Vault integration
+  gather_facts: true
+  hosts:
+    - nomad_servers
+    - nomad_clients
+  # roles:
+  #   - role: nomad-node
+  #     tasks_from: vault.yml
+  #     when: vault.enabled is true
+  #     vars:
+  #       #vault_nomad_regen_tokens: true
+  # tags: [ vault ]
+  
+  tasks:
+    - name: Run the Nomad/Vault server configuration
+      include_role:
+        name: nomad-node
+        tasks_from: vault.yml
+      # vars:
+      #   vault_nomad_regen_tokens: true
+      when: vault.enabled is true
+      tags: vault

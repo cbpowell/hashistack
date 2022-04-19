@@ -1,0 +1,27 @@
+# Stored at /usr/local/etc/coredns/Corefile
+
+consul:5371 {
+  forward . 10.7.3.2:8600 10.7.3.3:8600 10.7.3.4:8600
+  errors
+}
+
+direct.lab.theta142.com:5371 {
+  rewrite name substring .direct.lab.theta142.com .service.consul answer auto
+  forward . 10.7.3.2:8600 10.7.3.3:8600 10.7.3.4:8600
+  errors
+}
+
+lab.theta142.com:5371 {
+  # Traefik service must have tag for frontend service!
+  rewrite name substring .lab.theta142.com .traefik.service.consul answer auto
+  forward . 10.7.3.2:8600 10.7.3.3:8600 10.7.3.4:8600
+  # If Consul servers don't provide a response, try again with rewrite to "direct"
+  alternate NXDOMAIN . 127.0.0.1:5372
+  errors
+}
+
+traefik.service.consul:5372 {
+  rewrite name substring .traefik.service.consul .service.consul answer auto
+  forward . 10.7.3.2:8600 10.7.3.3:8600 10.7.3.4:8600
+  errors
+}

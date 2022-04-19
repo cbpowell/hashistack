@@ -1,0 +1,50 @@
+# Intended to be delegated to command server
+---
+- name: Get current policies
+  ansible.builtin.command:
+    cmd: "consul acl policy list -token {{ consul_http_token }}"
+    chdir: /etc/consul.d/
+  #become: yes
+  register: current_policies_query
+
+- debug:
+    var: current_policies_query.stdout
+    verbosity: 1
+    
+- name: Regex policy output to identify individual policies
+  set_fact:
+    existing_policies_raw: "{{ current_policies_query.stdout | regex_findall(policy_regex, multiline=True)}}"
+  vars:
+    policy_regex: '(.+):\n\s+ID:\s*(.+)\n\s+Description:\s*(.+)\n\s+Datacenters:(.*)' 
+  
+- name: Generate list of policies 
+  set_fact:
+    existing_policies: "{{ existing_policies | default([]) }} + {{ [dict(['name','id','description','datacenter'] | zip(item))] }}"
+  loop: "{{ existing_policies_raw }}"
+  
+- debug:
+    var: existing_policies
+    verbosity: 1
+
+- name: Generate list of existing policy names
+  set_fact:
+    existing_policy_names: "{{ existing_policies | map(attribute='name') | list }}"
+    
+- debug:
+    var: existing_policy_names
+    verbosity: 1
+    
+- block:
+  - name: Template node agent policy files
+    ansible.builtin.template:
+      src: agent-policy.j2
+      dest: "/etc/consul.d/acls/agent-policy-{{ item }}.hcl"
+    loop: "{{ play_hosts }}"
+  
+  - name: Create node agent policy for each host as needed
+    ansible.builtin.command:
+      cmd: "consul acl policy create -token {{ consul_http_token }} -name {{ item }}-agent-policy -rules @agent-policy-{{ item }}.hcl"
+      chdir: /etc/consul.d/
+    #become: yes
+    loop: "{{ play_hosts }}"
+  when: item not in existing_policies | map(attribute='name') | list

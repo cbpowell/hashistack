@@ -1,0 +1,6 @@
+---
+quick_volumes:
+  - volume_id:    changedetection
+    volume_name:  changedetection
+    plugin_id:    org.democratic-csi.iscsi.fundament
+    size:         1GiB

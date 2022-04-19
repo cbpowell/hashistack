@@ -1,0 +1,53 @@
+# Intended to be delegated to command server
+# Requires:
+#  - acl_role_type
+
+---
+- name: Get current roles
+  ansible.builtin.command:
+    cmd: "consul acl role list -token {{ consul_http_token }}"
+    chdir: /etc/consul.d/
+  #become: yes
+  register: current_roles_query
+
+- debug:
+    var: current_roles_query.stdout
+    verbosity: 1
+    
+- name: Regex roles output to identify individual roles
+  set_fact:
+    existing_roles_raw: "{{ current_roles_query.stdout | regex_findall(roles_regex, multiline=True)}}"
+  vars:
+    roles_regex: '(.+):\n\s+ID:\s*(.+)\n\s+Description:\s*(.+)\n' 
+  
+- name: Generate list of roles 
+  set_fact:
+    existing_roles: "{{ existing_roles | default([]) }} + {{ [dict(['name','id','description'] | zip(item))] }}"
+  loop: "{{ existing_roles_raw }}"
+  
+- debug:
+    var: existing_roles
+    verbosity: 1
+
+- name: Generate list of existing role names
+  set_fact:
+    existing_roles_names: "{{ existing_roles | map(attribute='name') | list }}"
+    
+- debug:
+    var: existing_roles_names
+    verbosity: 1
+    
+- name: Configure ACL directory
+  file:
+    path: /etc/consul.d/acls
+    state: directory
+  become: yes
+    
+- name: Create {{ acl_role_type }} role
+  ansible.builtin.command:
+    cmd: "consul acl role create -token {{ consul_http_token }} -name {{ acl_role_type }} -policy-name {{ acl_role_type }}-policy"
+    chdir: /etc/consul.d/
+  #become: yes
+  when: acl_role_name not in existing_roles | map(attribute='name') | list
+  vars:
+    acl_role_name: "{{ acl_role_type }}"

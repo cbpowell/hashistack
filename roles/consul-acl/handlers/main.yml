@@ -1,0 +1,13 @@
+---
+# handlers file for consul-acl
+- name: Restart Consul
+  ansible.builtin.systemd:
+    name: consul
+    state: restarted
+  become: yes
+  
+- name: Restart Nomad
+  ansible.builtin.systemd:
+    name: nomad
+    state: restarted
+  become: yes

@@ -1,0 +1,250 @@
+---
+# tasks file for consul-node
+- name: Add hashicorp apt key
+  ansible.builtin.apt_key:
+    url: https://apt.releases.hashicorp.com/gpg
+    state: present
+  become: yes
+    
+- name: Add hashicorp apt repo
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+    state: present
+  become: yes
+    
+- name: Update repositories cache and install "consul" package
+  apt:
+    name: consul
+    update_cache: yes
+    state: present
+  become: yes
+  
+- pause:
+  
+- name: Upgrade "consul" package if specified
+  apt:
+    name: consul
+    update_cache: no
+    state: latest
+  become: yes
+  tags: upgrade
+  
+- pause:
+
+- name: Configure Consul configuration directory
+  file:
+    path: /etc/consul.d/
+    state: directory
+  become: yes
+  
+- name: Configure Consul data directory
+  file:
+    path: /opt/consul
+    state: directory
+  become: yes
+    
+- name: Set Consul mode if not specified
+  set_fact:
+    consul_mode: client
+  when: consul_mode is not defined
+
+# Certificate Authority setup
+- name: Check if cert authority exists
+  stat:
+    path: /etc/consul.d/consul-agent-ca.pem
+  register: cert_authority_installed
+  become: yes
+  
+- name: Generate cert authority if needed
+  ansible.builtin.command:
+    cmd: consul tls ca create
+    chdir: /etc/consul.d/
+    creates: /etc/consul.d/consul-agent-ca*
+  become: yes
+  when:
+    - consul_mode == 'server'
+    - "(not consul_command_server) or (consul_command_server == inventory_hostname)"
+  
+  # If client mode, or non-command server, grab cert authority from command server
+- block:
+    - name: Archive CA
+      community.general.archive:
+        path:
+          - /etc/consul.d/consul-agent-ca.pem
+          - /etc/consul.d/consul-agent-ca-key.pem
+        dest: /tmp/consul-ca.tgz
+      delegate_to: "{{ consul_command_server }}"
+        
+    - name: Slurp cert archive from command server
+      slurp:
+        src: /tmp/consul-ca.tgz
+      delegate_to: "{{ consul_command_server }}"
+      register: ca_encoded
+      
+    - name: Delete cert archive from command server
+      file:
+        path: /tmp/consul-ca.tgz
+        state: absent
+      delegate_to: "{{ consul_command_server }}"
+      
+    - name: Save cert archive to client
+      copy:
+        content: "{{ ca_encoded.content | b64decode }}"
+        dest: /etc/consul.d/consul-ca.tgz
+      become: yes
+      
+    - name: Delete cert archive from client
+      file:
+        path: /etc/consul.d/consul-ca.tgz
+        state: absent
+      
+    - name: Unarchive certs on client
+      ansible.builtin.unarchive:
+        src: /etc/consul.d/consul-ca.tgz
+        dest: /etc/consul.d
+        remote_src: yes
+      become: yes
+        
+  when: not consul_skip_ca | default(False)
+  
+  # Client certificate setup
+- name: Check if client cert exists
+  find:
+    paths: /etc/consul.d/
+    patterns: "{{ consul_dc_name }}-*-{{ inventory_hostname }}*.pem"
+  register: client_cert_results
+  become: yes
+  
+- set_fact:
+    clientized_cert_name: "{{ consul_dc_name }}-{{ consul_mode }}-{{ inventory_hostname }}"
+  
+- debug:
+    var: client_cert_results
+  
+- pause:
+  
+  ## Generate client certs if needed or specified
+- block:
+    - name: Generate client certs on command server
+      ansible.builtin.command:
+        cmd: "consul tls cert create -{{ consul_mode }} -dc {{ consul_dc_name }}"
+        chdir: /etc/consul.d/
+      #become: yes
+      register: client_cert_info
+      delegate_to: "{{ consul_command_server }}"
+
+    - debug:
+        var: client_cert_info
+
+    - name: Get cert name and id number
+      set_fact:
+        client_cert_filename: "{{ client_cert_info.stdout | regex_search(client_cert_re,'\\1') | first }}"
+        client_cert_index: "{{ client_cert_info.stdout | regex_search(client_cert_re,'\\3') | first }}"
+      vars:
+        client_cert_re: '({{ consul_dc_name }}-(client|server)-consul-(\d+)).pem'
+
+    - debug:
+        var: client_cert_filename
+
+    - debug:
+        var: client_cert_index
+        
+    - debug:
+        var: clientized_cert_name
+        
+    - pause:
+      
+    - name: Slurp client/server cert from command server
+      slurp:
+        src: "/etc/consul.d/{{ client_cert_filename }}.pem"
+      delegate_to: "{{ consul_command_server }}"
+      register: client_cert_encoded
+
+    - name: Save cert to client
+      copy:
+        # Append '==' to make decode work right
+        # Ref, weirdly: https://github.com/kubernetes-client/python/issues/525
+        content: "{{ client_cert_encoded.content | b64decode }}"
+        dest: "/etc/consul.d/{{ clientized_cert_name }}.pem"
+      become: yes
+
+    - name: Slurp cert key from command server
+      slurp:
+        src: "/etc/consul.d/{{ client_cert_filename }}-key.pem"
+      delegate_to: "{{ consul_command_server }}"
+      register: client_cert_key_encoded
+
+    - name: Save cert key to client
+      copy:
+        content: "{{ client_cert_key_encoded.content | b64decode }}"
+        dest: "/etc/consul.d/{{ clientized_cert_name }}-key.pem"
+      become: yes
+    
+    - name: Clean up generated certs from command server
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "/etc/consul.d/{{ client_cert_filename }}.pem"
+        - "/etc/consul.d/{{ client_cert_filename }}-key.pem"
+      delegate_to: "{{ consul_command_server }}"
+
+  when:
+    #- (consul_command_server != inventory_hostname)
+    - not consul_skip_certs | default(False)
+    - ((client_cert_results.matched < 2) or (regenerate_client_certs is defined))
+    
+- pause:
+    
+- name: Template consul.hcl.j2 to /etc/consul.d/consul.hcl
+  ansible.builtin.template:
+    src: consul.hcl.j2
+    dest: /etc/consul.d/consul.hcl
+  vars:
+    consul_server_bool: "{{ (consul_mode == 'server') | lower }}"
+    consul_ui_value: "{{ (consul_ui | default(false)) | lower }}"
+    consul_bootstrap_output: "{{ 'bootstrap_expect=' + (consul_bootstrap_expect | string) if (consul_mode == 'server') else '' }}"
+  become: yes
+  notify: Restart Consul
+  
+- name: Set final consul.d contents permissions, recursively
+  file:
+    dest: /etc/consul.d
+    owner: consul
+    group: consul
+    mode: '0640'
+    recurse: yes
+  become: yes
+  
+- name: Set final consul.d dir permissions
+  file:
+    dest: /etc/consul.d
+    owner: consul
+    group: consul
+    mode: '0740'
+    recurse: no
+  become: yes
+  
+- name: Set final consul data dir permissions, recursively
+  file:
+    dest: /opt/consul
+    owner: consul
+    group: consul
+    mode: '0740'
+    recurse: yes
+  become: yes
+
+- block:
+  - name: Configure Consul systemd service
+    ansible.builtin.systemd:
+      name: consul
+      enabled: "{{ consul_enable | default(true) | bool }}"
+      state: "{{ 'started' if consul_start | default(true) else 'stopped' }}"
+      masked: no
+    become: yes
+  rescue:
+  - name: Restart Consul
+    ansible.builtin.systemd:
+      name: consul
+      state: restarted
+    become: yes

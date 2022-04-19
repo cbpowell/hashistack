@@ -1,0 +1,90 @@
+---
+# Inputs:
+# - job_name
+
+- name: Setup job storage folder if inspection is required
+  file:
+    path: jobs/{{ job_name }}
+    state: directory
+  when: job_inspect is true
+
+- name: Get variables for specific job
+  include_vars:
+    dir: "{{ playbook_dir }}/jobs/{{ job_name }}"
+    ignore_unknown_extensions: true
+    extensions:
+      - yaml
+      - yml 
+    name: nomad_job_vars
+  delegate_to: 127.0.0.1
+    
+### Vault policies
+- name: Get all Vault policies in job directory
+  find:
+    paths: "./jobs/{{ job_name }}"
+    patterns: "*.vpol.j2"
+  register: vault_policies
+  delegate_to: 127.0.0.1
+  
+- name: Apply all Vault policies
+  ansible.builtin.command:
+    cmd: vault policy write {{ vpol_name }} -
+    stdin: "{{ lookup('template', vpol.path) }}"
+  environment:
+    VAULT_TOKEN: "{{ vault_root_token }}"
+    VAULT_ADDR: "{{ vault.address }}"
+  vars:
+    vpol_name: "{{ vpol.path | basename | regex_replace('\\.vpol\\.j2') }}"
+  register: vpol_output
+  with_items: "{{ query('list', vault_policies.files) }}"
+  loop_control:
+    loop_var: vpol
+    label: "{{ vpol_name }}"
+  
+- name: Save policies for inspection if specified
+  template:
+    src: "{{ vpol.path }}"
+    dest: jobs/{{ job_name }}/{{ vpol.path | basename }}
+  with_items: "{{ query('list', vault_policies.files) }}"
+  vars:
+    vpol_name: "{{ vpol.path | basename | regex_replace('\\.vpol\\.j2') }}"
+  loop_control:
+    loop_var: vpol
+    label: "{{ vpol_name }}"
+  when: job_inspect is true
+
+### Nomad Volumes
+- name: Get all full-definition Nomad volumes in job directory
+  find:
+    paths: "./jobs/{{ job_name }}"
+    patterns: "*.nvol.j2"
+  register: nomad_volumes
+  delegate_to: 127.0.0.1
+
+- name: Create full-definition Nomad volumes
+  include_tasks:
+    file: create_nomad_volume.yml
+  vars:
+    nvol_definition: "{{ lookup('template', nvol.path) }}"
+    nvol_name: "{{ nvol.path | basename | regex_replace('\\.nvol\\.j2') }}"
+  with_items: "{{ query('list', nomad_volumes.files) }}"
+  loop_control:
+    loop_var: nvol
+    label: "{{ nvol_name }}"
+  
+- name: Create quick-definition Nomad volumes
+  include_tasks:
+    file: create_nomad_volume.yml
+  vars:
+    volume_id: "{{ nvol.volume_id }}"
+    volume_name: "{{ nvol.volume_name }}"
+    volume_min: "{{ nvol.size_min | default(nvol.size) | default('1Gib') }}"
+    volume_max: "{{ nvol.size_max | default(nvol.size) | default('1Gib') }}"
+    plugin_id: "{{ nvol.plugin_id }}"
+    nvol_name: "{{ nvol.volume_name }}"
+    nvol_definition: "{{ lookup('template', 'quick-csi-volume.j2') }}"
+  with_items: "{{ query('list', nomad_job_vars.quick_volumes) }}"
+  when: nomad_job_vars.quick_volumes is defined
+  loop_control:
+    loop_var: nvol
+    label: "{{ volume_name }}"

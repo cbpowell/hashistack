@@ -1,0 +1,5 @@
+---
+quick_volumes:
+  - volume_id:    gitea
+    volume_name:  gitea
+    plugin_id:    org.democratic-csi.iscsi.fundament

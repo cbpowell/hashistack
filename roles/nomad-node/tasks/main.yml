@@ -1,0 +1,179 @@
+---
+# tasks file for nomad-node
+
+# Core setup
+- name: Add hashicorp apt key
+  ansible.builtin.apt_key:
+    url: https://apt.releases.hashicorp.com/gpg
+    state: present
+  become: yes
+    
+- name: Add hashicorp apt repo
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+    state: present
+  become: yes
+  
+- name: Update repositories cache and install Nomad package
+  apt:
+    name: nomad
+    update_cache: yes
+  become: yes
+  
+- name: Upgrade Nomad package if specified
+  apt:
+    name: nomad
+    update_cache: no
+    state: latest
+  become: yes
+  tags: upgrade
+    
+# Storage config
+- block:
+  - name: Install required packages
+    apt:
+      pkg:
+        - nfs-common
+        - open-iscsi
+        - lsscsi
+        - sg3-utils
+        - multipath-tools 
+        - scsitools
+    become: yes
+    
+  - name: Upgrade required packages if specified
+    apt:
+      pkg:
+        - nfs-common
+        - open-iscsi
+        - lsscsi
+        - sg3-utils
+        - multipath-tools 
+        - scsitools
+      state: latest
+    become: yes
+    tags: upgrade
+    
+  - name: Template multipath config
+    ansible.builtin.template:
+      src: multipath.conf.j2
+      dest: /etc/multipath.conf
+    become: yes
+    notify: Restart Multipath
+    
+  - name: Enable multipath service
+    ansible.builtin.systemd:
+      name: multipath-tools
+      enabled: true
+      state: started
+      masked: no
+    become: yes
+    
+  - name: Enable open-iscsi service
+    ansible.builtin.systemd:
+      name: open-iscsi
+      enabled: true
+      state: started
+      masked: no
+    become: yes
+    
+  - name: Install cachefilesd
+    apt:
+      name: cachefilesd
+    become: yes
+  
+  - name: Create cachefilesd config file
+    copy:
+      dest: /etc/default/cachefilesd
+      content: RUN=yes
+    become: yes
+    notify: Restart cachefilesd
+  
+  - name: Add and mount NFS share
+    mount:
+      path: "{{ item.path }}"
+      src: "{{ item.src }}"
+      fstype: "{{ item.fstype }}"
+      opts: "{{ item.options }},nodev"
+      state: present
+    with_items: "{{ nomad_nfs_mounts }}"
+    when: nomad_nfs_mounts is defined
+    become: yes
+  
+  when: nomad_csi is true
+
+# Common settings
+- name: Configure Nomad configuration directory
+  file:
+    path: /etc/nomad.d/
+    state: directory
+  become: yes
+  
+- name: Configure Nomad data directory
+  file:
+    path: /opt/nomad
+    state: directory
+  become: yes
+
+- name: Template nomad.hcl.j2 to /etc/nomad.d/nomad.hcl
+  ansible.builtin.template:
+    src: nomad.hcl.j2
+    dest: /etc/nomad.d/nomad.hcl
+  become: yes
+  notify: Restart Nomad
+  
+# Server config
+- name: Template server.hcl.j2 to /etc/nomad.d/server.hcl
+  ansible.builtin.template:
+    src: server.hcl.j2
+    dest: /etc/nomad.d/server.hcl
+  become: yes
+  when: nomad_mode == 'server'
+  notify: Restart Nomad
+
+# Client config
+- name: Template client.hcl.j2 to /etc/nomad.d/client.hcl
+  ansible.builtin.template:
+    src: client.hcl.j2
+    dest: /etc/nomad.d/client.hcl
+  become: yes
+  when: nomad_mode == 'client'
+  notify: Restart Nomad
+  
+- name: Set final nomad.d contents permissions, recursively
+  file:
+    dest: /etc/nomad.d
+    owner: root
+    group: root
+    mode: '0700'
+    recurse: yes
+  become: yes
+  
+- name: Set final nomad data dir permissions, recursively
+  file:
+    dest: /opt/nomad
+    owner: root
+    group: root
+    mode: '0700'
+    recurse: no
+  become: yes
+  
+- block:
+  - name: Configure Nomad systemd service
+    ansible.builtin.systemd:
+      name: nomad
+      enabled: "{{ nomad_enable | default(true) | bool }}"
+      state: "{{ 'started' if nomad_start | default(true) else 'stopped' }}"
+      masked: no
+    become: yes
+  rescue:
+  - name: Restart Nomad
+    ansible.builtin.systemd:
+      name: nomad
+      state: restarted
+    become: yes
+    
+- name: Flush handlers
+  meta: flush_handlers
+  
+  

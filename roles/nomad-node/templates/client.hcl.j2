@@ -1,0 +1,22 @@
+client {
+  enabled = true
+{% if nomad_meta_tags is defined %}
+  meta {
+{% for key, value in nomad_meta_tags.items() %}
+    {{key}} = "{{value}}"
+{% endfor %}
+  }
+{% endif %}
+{% if nomad_compute_override is defined %}
+  cpu_total_compute = {{ nomad_compute_override }}
+{% endif %}
+{% if nomad_memory_override is defined %}
+  memory_total_mb = {{ nomad_memory_override }}
+{% endif %}
+}
+
+{% if nomad_additional_stanzas is defined %}
+{% for stanza in nomad_additional_stanzas %}
+{{stanza}}
+{% endfor %}
+{% endif %}

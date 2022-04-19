@@ -1,0 +1,63 @@
+---
+
+- name: Configure Nomad jobs
+  gather_facts: false
+  hosts:
+    - nomad_clients
+  run_once: true 
+  tasks:
+    - import_role:
+        name: nomad-job
+      vars:
+        job: bunker
+      tags: [system, storage, democratic-csi]
+      
+    - import_role:
+        name: nomad-job
+      vars:
+        job: fundament
+      tags: [system, storage, democratic-csi]
+      
+    - import_role:
+        name: nomad-job
+      vars:
+        job: gitea
+      tags: [service, dev, gitea]
+      
+    # - import_role:
+    #     name: nomad-job
+    #   vars:
+    #     job: 1password
+    #   tags: [service, security, 1password ]
+      
+    - import_role:
+        name: nomad-job
+      vars:
+        job: diun
+      tags: [system, monitoring, diun]
+    
+    - import_role:
+        name: nomad-job
+      vars:
+        job: changedetection
+      tags: [service, monitoring, changedetection ]
+      
+    - import_role:
+        name: nomad-job
+      vars:
+        job: uptimekuma
+      tags: [service, monitoring, uptimekuma ]
+      
+    - import_role:
+        name: nomad-job
+      vars:
+        job: mqtt
+      tags: [service, infra, smarthome, mqtt ]
+      
+### Run traefik last, to get full service tags!
+    - import_role:
+        name: nomad-job
+      vars:
+        job: traefik
+        combined_tags: "{{ (traefik.default_tags | default([])) + (traefik.publish_tags | default([])) }}"
+      tags: [ always, networking, traefik ]

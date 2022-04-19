@@ -1,0 +1,14 @@
+---
+
+- name: Configure Vault nodes
+  gather_facts: true
+  hosts:
+    - vault_nodes
+  tasks:
+    ### Run Nomad role
+    - name: Run the Vault role
+      include_role:
+        name: vault-node
+  tags: always
+
+        

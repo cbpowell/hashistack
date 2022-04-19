@@ -1,0 +1,39 @@
+# Intended to be delegated to command server
+---
+  # Create new tokens if not defined
+- name: Create tokens for each host if not defined
+  ansible.builtin.command:
+    cmd: 'consul acl token create -token {{ consul_http_token }} -description "{{ item }} agent token" -policy-name {{ item }}-agent-policy'
+    chdir: /etc/consul.d/
+  #become: yes
+  loop: "{{ play_hosts }}"
+  when: not lookup('vars','consul_' + item + 'agent_token', default='')
+  register: token_output
+  
+#   # Update token policies otherwise
+# - name: Update token policies if token already exists
+#   ansible.builtin.command:
+#     cmd: 'consul acl token update -token {{ consul_http_token }} -policy-name {{ item }}'
+#     chdir: /etc/consul.d/
+#   #become: yes
+#   loop: "{{ play_hosts }}"
+#   when: lookup('vars','consul_' + item + '_token', default='')
+  
+- name: Regex token output to identify individual tokens
+  set_fact:
+    new_token_storage: "{{ new_token_storage | default({}) | combine ({ 'consul_' ~ item.item ~ 'agent_token' : item.stdout | regex_search(token_regex, '\\2') | first }) }}"
+    "consul_{{ item.item }}_token": "{{ item.stdout | regex_search(token_regex, '\\2') | first}}"
+  vars:
+    token_regex: 'AccessorID:\s*(.+)\nSecretID:\s*(.+)\nDescription:\s*(.+)\n'
+  loop: "{{ token_output.results }}"
+  when: item.changed == True
+  
+- name: Save all tokens locally for storage - DELETE LATER!
+  template:
+    src: token_storage.j2
+    dest: "{{ playbook_dir }}/new_token_storage.yaml"
+  when: new_token_storage is defined
+  vars:
+    storage: "{{ hostvars[consul_command_server]['new_token_storage'] | to_nice_yaml }}"
+  delegate_to: localhost
+  

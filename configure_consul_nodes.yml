@@ -1,0 +1,27 @@
+---
+
+- name: Configure Consul nodes
+  gather_facts: true
+  hosts:
+    - consul_clients
+  tasks:
+    - name: Run the Consul role
+      include_role:
+        name: consul-node
+      vars:
+        consul_config_acls: yes
+  tags: always
+
+- name: Configure Consul ACLs
+  gather_facts: true
+  hosts:
+    - consul_clients
+  tasks:
+    - name: Setup Consul ACLs
+      include_role:
+        name: consul-acl
+      vars:
+        consul_post_acl_restart: True
+  tags: acls
+        
+        

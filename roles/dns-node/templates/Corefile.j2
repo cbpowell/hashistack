@@ -1,0 +1,30 @@
+# Stored at /usr/local/etc/coredns/Corefile
+
+consul:{{ dns_loop1_port }} {
+  forward . {% for host in consul_dns_servers %}{{ host }}:8600{% if not loop.last %} {% endif %}{% endfor %}
+  errors
+}
+
+direct.{{ net_subdomain }}:{{ dns_loop1_port}} {
+  rewrite name substring .direct.{{ net_subdomain }} .service.consul answer auto
+  forward . {% for host in consul_dns_servers %}{{ host }}:8600{% if not loop.last %} {% endif %}{% endfor %}
+  
+  errors
+}
+
+{{ net_subdomain }}:{{ dns_loop1_port }} {
+  # Traefik service must have tag for frontend service!
+  rewrite name substring .{{ net_subdomain }} .traefik.service.consul answer auto
+  forward . {% for host in consul_dns_servers %}{{ host }}:8600{% if not loop.last %} {% endif %}{% endfor %}
+  
+  # If Consul servers don't provide a response, try again with rewrite to "direct"
+  alternate NXDOMAIN . 127.0.0.1:{{ dns_loop2_port }}
+  errors
+}
+
+traefik.service.consul:{{ dns_loop2_port }} {
+  rewrite name substring .traefik.service.consul .service.consul answer auto
+  forward . {% for host in consul_dns_servers %}{{ host }}:8600{% if not loop.last %} {% endif %}{% endfor %}
+  
+  errors
+}

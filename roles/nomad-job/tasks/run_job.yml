@@ -1,0 +1,46 @@
+---
+- name: Get all job files in job directory
+  find:
+    paths: "{{ playbook_dir }}/jobs/{{ job_name }}"
+    patterns: "*.nomad.j2"
+  register: job_files
+  delegate_to: 127.0.0.1
+  
+# - name: Generate job files
+#   set_fact:
+#     nomad_jobs_def: "{{ (nomad_jobs_def | default([])) + [{ 'name': (njob.path | basename | regex_replace('\\.nomad\\.j2')), 'definition' : lookup('template', njob.path)}] }}"
+#   with_items: "{{ query('list', job_files.files) }}"
+#   loop_control:
+#     loop_var: njob
+#     label: "{{ njob.path | basename }}"
+#
+# - name: Append traefik tag if traefik is enabled
+#   set_fact:
+#     job_service_tags: "{{ (job_service_tags | default([])) + [ndef.name] }}"
+#   when: (ndef.definition | regex_search('^\\s*#{0}\\s*traefik.enable?\\s?=\\s?true')) == ''
+#   with_items: "{{ query('list', nomad_jobs_def) }}"
+#   loop_control:
+#     loop_var: ndef
+#     label: "{{ ndef.name }}"
+
+- name: Run Nomad jobs
+  ansible.builtin.command:
+    cmd: nomad job run -detach -
+    stdin: "{{ lookup('template', job_file.path) }}"
+  environment:
+    NOMAD_TOKEN: "{{ nomad_root_token }}"
+  register: job_output
+  with_items: "{{ query('list', job_files.files) }}"
+  loop_control:
+    loop_var: job_file
+    label: "{{ job_file.path | basename }}"
+    
+- name: Save job file for inspection if specified
+  template:
+    src: "{{ job_file.path }}"
+    dest: jobs/{{ job_name }}/{{ job_file.path | basename }}
+  with_items: "{{ query('list', job_files.files) }}"
+  loop_control:
+    loop_var: job_file
+    label: "{{ job_file.path | basename }}"
+  when: job_inspect is true

@@ -1,0 +1,9 @@
+---
+# tasks file for dns-node
+
+- name: Template Corefile
+  ansible.builtin.template:
+    src: Corefile.j2
+    dest: "{{ corefile_location }}"
+  become: yes
+  notify: Restart CoreDNS

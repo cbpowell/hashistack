@@ -1,0 +1,57 @@
+# Intended to be delegated to command server
+# Requires:
+#   - token_type
+#   - role_token: Boolean | default(False)
+#   - target | default(play_hosts)
+
+---  
+- name: List-ify target if single item provided
+  set_fact:
+    target: ["{{ target }}"]
+  when: target is string
+  
+  # Create new tokens if not defined
+- name: Create tokens for each host if not defined
+  ansible.builtin.command:
+    cmd: consul acl token create -token {{ consul_http_token }} -description "{{ token_description }}" {{ policy_attachment }}
+    chdir: /etc/consul.d/
+  #become: yes
+  with_items: "{{ target | default(play_hosts) }}"
+  # only execute when we don't already have a defined token for this criteria
+  when: not lookup('vars','consul_' + item_var + token_type | replace('-','_') + '_token', default='')
+  vars:
+    # item_var will be 'host name + _' unless generic, in which case it is empty ("")
+    item_var: "{% if generic_token | default(False) %}{% else %}{{ item }}_{% endif %}"
+    token_description: "{{ item }} {{ token_type }} token"
+    policy_attachment: "{% if role_token | default(False) %} -role-name {{ token_type }} {% else %} -policy-name {{ item }}-{{ token_type }}-policy {% endif %}"
+  register: token_output
+  
+#   # Update token policies otherwise
+# - name: Update token policies if token already exists
+#   ansible.builtin.command:
+#     cmd: 'consul acl token update -token {{ consul_http_token }} -policy-name {{ item }}'
+#     chdir: /etc/consul.d/
+#   #become: yes
+#   loop: "{{ play_hosts }}"
+#   when: lookup('vars','consul_' + item + '_token', default='')
+  
+- name: Regex token output to identify individual tokens
+  set_fact:
+    new_token_storage: "{{ new_token_storage | default({}) | combine ({ new_token_var_name : item.stdout | regex_search(token_regex, '\\2') | first }) }}"
+    "{{ new_token_var_name }}": "{{ item.stdout | regex_search(token_regex, '\\2') | first}}"
+  vars:
+    new_token_var_name: consul_{{ item.item }}_{{ token_type | replace('-','_') }}_token
+    token_regex: 'AccessorID:\s*(.+)\nSecretID:\s*(.+)\nDescription:\s*(.+)\n'
+  loop: "{{ token_output.results }}"
+  when: item.changed == True
+  
+- name: Save all tokens locally for storage - DELETE LATER!
+  template:
+    src: token_storage.j2
+    dest: "{{ playbook_dir }}/new_{{ token_type }}_token_storage.yaml"
+  when: new_token_storage is defined
+  vars:
+    new_storage_name: 
+    storage: "{{ hostvars[consul_command_server]['new_token_storage'] | to_nice_yaml }}"
+  delegate_to: localhost
+  

@@ -1,0 +1,37 @@
+# Inputs
+# - job_name: job name
+# - nvol_name: volume name
+# - nvol_definition: full HCL volume spec to pass to command
+  
+- name: Check if volume already exists
+  ansible.builtin.command:
+    cmd: nomad volume status {{ nvol_name }}
+  environment:
+    NOMAD_TOKEN: "{{ nomad_root_token }}"
+  register: nvol_status_output
+  failed_when: nvol_status_output.rc > 1
+  changed_when: false
+  
+- name: Deregister existing volume
+  ansible.builtin.command:
+    cmd: nomad volume deregister {{ nvol_name }}
+  environment:
+    NOMAD_TOKEN: "{{ nomad_root_token }}"
+  # When there's no error code because volume exists, AND recreate is requsted
+  when: (nvol_status_output.rc == 0) and (nomad_recreate_volumes is true)
+  
+- name: Create Nomad volumes
+  block:
+    - ansible.builtin.command:
+        cmd: nomad volume create -
+        stdin: "{{ nvol_definition }}"
+      environment:
+        NOMAD_TOKEN: "{{ nomad_root_token }}"
+      register: nvol_create_output
+    
+    - name: Save volumes for inspection if specified
+      copy:
+        content: "{{ nvol_definition }}"
+        dest: "jobs/{{ job_name }}/{{ nvol_name }}.nvol"
+      when: job_inspect is true
+  when: (nvol_status_output.rc > 0) or (nomad_recreate_volumes is true)

@@ -1,0 +1,184 @@
+---
+- when: inventory_hostname == consul_command_server
+  block:
+  # Generate agent policies for each host
+  - name: Configure agent policies
+    import_tasks: generate-policy.yml
+    vars:
+      policy_type: agent
+  
+  # Generate default policies for each host
+  - name: Configure default policies
+    import_tasks: generate-policy.yml
+    vars:
+      policy_type: default
+  
+  # Generate Nomad-server role and policy
+  - name: Configure Nomad server role policy
+    import_tasks: generate-role-policy.yml
+    vars:
+      acl_role_type: nomad-server
+  
+  - name: Configure Nomad server role
+    import_tasks: generate-role.yml
+    vars:
+      acl_role_type: nomad-server
+  
+  # Generate Nomad-client role and policy
+  - name: Configure Nomad client role policy
+    import_tasks: generate-role-policy.yml
+    vars:
+      acl_role_type: nomad-client
+    
+  - name: Configure Nomad client role
+    import_tasks: generate-role.yml
+    vars:
+      acl_role_type: nomad-client
+      
+  # Generate vault-node role and policy
+  - name: Configure Vault node role policy
+    import_tasks: generate-role-policy.yml
+    vars:
+      acl_role_type: vault-node
+    
+  - name: Configure Vault node role
+    import_tasks: generate-role.yml
+    vars:
+      acl_role_type: vault-node
+      
+  # # Generate Portworx role and policy
+  # - name: Configure Portworx role policy
+  #   import_tasks: generate-role-policy.yml
+  #   vars:
+  #     acl_role_type: portworx
+  #
+  # - name: Configure Portworx role
+  #   import_tasks: generate-role.yml
+  #   vars:
+  #     acl_role_type: portworx
+
+  # Generate agent tokens for each host
+  - name: Configure agent tokens
+    import_tasks: generate-tokens.yml
+    vars:
+      token_type: agent
+  
+  # Generate default tokens for each host
+  - name: Configure default tokens
+    import_tasks: generate-tokens.yml
+    vars:
+      token_type: default
+
+  - name: Pre Nomad-server role tokens
+    pause:
+  
+  # Generate Nomad-server role tokens
+  - name: Configure Nomad server role tokens
+    import_tasks: generate-tokens.yml
+    vars:
+      token_type: nomad-server
+      role_token: yes
+      target: "{{ groups.nomad_servers }}"
+  
+  - name: Pre Nomad-client role tokens
+    pause:
+  
+  # Generate Nomad-client role tokens
+  - name: Configure Nomad client role tokens
+    import_tasks: generate-tokens.yml
+    vars:
+      token_type: nomad-client
+      role_token: yes
+      target: "{{ groups.nomad_clients }}"
+      
+  - name: Pre Vault node role tokens
+    pause:
+  
+  # Generate Vault node role tokens
+  - name: Configure Vault node role tokens
+    import_tasks: generate-tokens.yml
+    vars:
+      token_type: vault-node
+      role_token: yes
+      target: "{{ groups.vault_nodes }}"
+      
+  # - name: Pre Portworx role tokens
+  #   pause:
+  #
+  # # Generate Portworx token - only once, on server
+  # - name: Configure Portworx Token
+  #   import_tasks: generate-tokens.yml
+  #   vars:
+  #     token_type: portworx
+  #     role_token: yes
+  #     generic_token: yes
+  #     target: "{{ consul_command_server }}"
+  
+- name: Localizing agents next
+  pause:
+  
+- name: Localize agent token to this agent
+  set_fact:
+    "agent_token_secret": "{{ hostvars[consul_command_server][token_variable_name] | default('')}}"
+  vars:
+    token_variable_name: "consul_{{ inventory_hostname }}_agent_token"
+    
+- name: Localize default token to this agent
+  set_fact:
+    "default_token_secret": "{{ hostvars[consul_command_server][token_variable_name] | default('')}}"
+  vars:
+    token_variable_name: "consul_{{ inventory_hostname }}_default_token"
+    
+- pause:
+  
+- name: Assign agent tokens to respective clients
+  ansible.builtin.command:
+    cmd: 'consul acl set-agent-token -token {{ consul_http_token }} agent "{{ agent_token_secret }}"'
+    chdir: /etc/consul.d/
+  become: yes
+  # vars:
+  #   agent_token: "{{ vars['consul_' ~ inventory_hostname ~ '_token'] }}"
+  
+- name: Assign default tokens to respective clients
+  ansible.builtin.command:
+    cmd: 'consul acl set-agent-token -token {{ consul_http_token }} default "{{ default_token_secret }}"'
+    chdir: /etc/consul.d/
+  become: yes
+  # vars:
+  #   agent_token: "{{ vars['consul_' ~ inventory_hostname ~ '_token'] }}"
+
+- pause:
+  
+- name: Localize nomad-server token to this agent if nomad server
+  set_fact:
+    nomad_node_token: "{{ hostvars[consul_command_server][token_variable_name] | default('')}}"
+  vars:
+    token_variable_name: "consul_{{ inventory_hostname }}_nomad_server_token"
+  when: inventory_hostname in groups.nomad_servers
+  
+- pause:
+  
+- name: Localize nomad-client token to this agent if nomad client
+  set_fact:
+    nomad_node_token: "{{ hostvars[consul_command_server][token_variable_name] | default('')}}"
+  vars:
+    token_variable_name: "consul_{{ inventory_hostname }}_nomad_client_token"
+  when: inventory_hostname in groups.nomad_clients
+  
+- pause:
+  
+- name: Template Consul stanza to Nomad config directory to specify token
+  ansible.builtin.template:
+    src: consul-token.j2
+    dest: /etc/nomad.d/consul-token.hcl
+  become: yes
+  when: inventory_hostname in groups.nomad_clients or inventory_hostname in groups.nomad_servers
+  notify: Restart Nomad
+  
+- name: Restart Consul when specified
+  ansible.builtin.systemd:
+    name: consul
+    state: restarted
+  become: yes
+  when: consul_post_acl_restart | default(False)
+  

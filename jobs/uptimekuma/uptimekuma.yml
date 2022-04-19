@@ -1,0 +1,6 @@
+---
+quick_volumes:
+  - volume_id:    uptimekuma
+    volume_name:  uptimekuma
+    plugin_id:    org.democratic-csi.iscsi.fundament
+    size:         1GiB

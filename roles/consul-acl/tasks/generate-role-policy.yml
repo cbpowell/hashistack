@@ -1,0 +1,58 @@
+# Intended to be delegated to command server
+# Requires:
+#  - acl_role_type
+
+---
+- name: Get current policies
+  ansible.builtin.command:
+    cmd: "consul acl policy list -token {{ consul_http_token }}"
+    chdir: /etc/consul.d/
+  #become: yes
+  register: current_policies_query
+
+- debug:
+    var: current_policies_query.stdout
+    verbosity: 1
+    
+- name: Regex policy output to identify individual policies
+  set_fact:
+    existing_policies_raw: "{{ current_policies_query.stdout | regex_findall(policy_regex, multiline=True)}}"
+  vars:
+    policy_regex: '(.+):\n\s+ID:\s*(.+)\n\s+Description:\s*(.+)\n\s+Datacenters:(.*)' 
+  
+- name: Generate list of policies 
+  set_fact:
+    existing_policies: "{{ existing_policies | default([]) }} + {{ [dict(['name','id','description','datacenter'] | zip(item))] }}"
+  loop: "{{ existing_policies_raw }}"
+  
+- debug:
+    var: existing_policies
+    verbosity: 1
+
+- name: Generate list of existing policy names
+  set_fact:
+    existing_policy_names: "{{ existing_policies | map(attribute='name') | list }}"
+    new_policy_name: "{{ acl_role_type }}-policy"
+    
+- debug:
+    var: existing_policy_names
+    verbosity: 1
+    
+- name: Configure ACL directory
+  file:
+    path: /etc/consul.d/acls
+    state: directory
+  become: yes
+    
+- block:
+  - name: Template role {{ acl_role_type }} policy files
+    ansible.builtin.template:
+      src: "{{ acl_role_type }}-policy.j2"
+      dest: "/etc/consul.d/acls/{{ new_policy_name }}.hcl"
+  
+  - name: Create node {{ acl_role_type }} policy if needed
+    ansible.builtin.command:
+      cmd: "consul acl policy create -token {{ consul_http_token }} -name {{ new_policy_name }} -rules @acls/{{ new_policy_name }}.hcl"
+      chdir: /etc/consul.d/
+    #become: yes
+  when: new_policy_name not in existing_policies | map(attribute='name') | list

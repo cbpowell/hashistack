@@ -1,0 +1,13 @@
+---
+
+- name: Configure DNS nodes
+  gather_facts: false
+  hosts:
+    - dns_servers
+  
+  tasks: 
+    - name: Run the DNS role
+      include_role:
+        name: dns-node
+
+        

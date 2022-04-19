@@ -1,0 +1,7 @@
+---
+# handlers file for consul-node
+- name: Restart Consul
+  ansible.builtin.systemd:
+    name: consul
+    state: restarted
+  become: yes

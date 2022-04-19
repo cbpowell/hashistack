@@ -1,0 +1,83 @@
+---
+# Start of server-only block
+- block:
+  # Block of run_once execution on a server
+  - block:
+    - name: Template nomad-server vault policy for subsequent application
+      ansible.builtin.template:
+        src: vault/vault-nomad-server-policy.hcl.j2
+        dest: vault-nomad-server-policy.hcl
+
+    - name: Template nomad-cluster role for subsequent application
+      ansible.builtin.template:
+        src: vault/nomad-cluster-role.json.j2
+        dest: nomad-cluster-role.json
+  
+    - name: Write policy to Vault
+      ansible.builtin.command:
+        cmd: vault policy write nomad-server vault-nomad-server-policy.hcl
+      environment:
+        VAULT_TOKEN: "{{ vault_root_token }}"
+        VAULT_ADDR: http://127.0.0.1:8200
+    
+    - name: Write nomad-cluster role to Vault
+      ansible.builtin.command:
+        cmd: vault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
+      environment:
+        VAULT_TOKEN: "{{ vault_root_token }}"
+        VAULT_ADDR: http://127.0.0.1:8200
+      register: out
+      
+    - debug: var=out.stdout_lines
+  
+    - name: Delete policy temp file
+      file:
+        state: absent
+        path: vault-nomad-server-policy.hcl
+  
+    - name: Delete role temp file
+      file:
+        state: absent
+        path: nomad-cluster-role.json
+    run_once: true
+    # End run_once block
+    
+  - name: Check if vault.hcl exists
+    stat:
+      path: /etc/nomad.d/vault-token.hcl
+    register: stat_result
+  
+  # Token update block
+  - block:
+    - name: Generate token for Nomad servers
+      ansible.builtin.command:
+        cmd: vault token create -policy nomad-server -period 72h -orphan -display-name {{ inventory_hostname }}
+      register: token_create_output
+      environment:
+        VAULT_TOKEN: "{{ vault_root_token }}"
+        VAULT_ADDR: http://127.0.0.1:8200
+        VAULT_FORMAT: json
+    
+    - name: Get token to set in config
+      set_fact:
+        nomad_vault_token: "{{ (token_create_output.stdout | from_json).auth.client_token }}"
+      
+    - name: Template Vault token stanza to Nomad configuration
+      ansible.builtin.template:
+        src: vault/vault-token.hcl.j2
+        dest: /etc/nomad.d/vault-token.hcl
+        mode: '0600'
+      become: yes
+      notify: Restart Nomad
+    # End token update block
+    when: not stat_result.stat.exists or vault_nomad_regen_tokens
+  # Run block only when node in vault_nodes (i.e. servers)
+  when: "'vault_nodes' in group_names"
+  
+- name: Template Vault config stanza to Nomad configuration
+  ansible.builtin.template:
+    src: vault/vault-config.hcl.j2
+    dest: /etc/nomad.d/vault-config.hcl
+    mode: '0600'
+  become: yes
+  notify: Restart Nomad

@@ -1,0 +1,10 @@
+server {
+  enabled = true
+  bootstrap_expect = {{ nomad_bootstrap_expect }}
+}
+
+{% if nomad_additional_stanzas is defined %}
+{% for stanza in nomad_additional_stanzas %}
+{{stanza}}
+{% endfor %}
+{% endif %}

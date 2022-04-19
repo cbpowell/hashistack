@@ -1,0 +1,19 @@
+---
+# handlers file for nomad-node
+- name: Restart Nomad
+  ansible.builtin.systemd:
+    name: nomad
+    state: restarted
+  become: yes
+  
+- name: Restart cachefilesd
+  ansible.builtin.systemd:
+    name: cachefilesd
+    state: restarted
+  become: yes
+  
+- name: Restart Multipath
+  ansible.builtin.systemd:
+    name: multipath-tools
+    state: restarted
+  become: yes

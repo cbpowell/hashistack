@@ -1,0 +1,18 @@
+---   
+- name: Prepare defined jobs
+  include_tasks:
+    file: prepare_job.yml
+  vars:
+    job_name: "{{ item }}"
+  run_once: true
+  # Loop over each provided policy file
+  with_items: "{{ query('list', job) }}"
+  
+- name: Run Nomad jobs
+  include_tasks:
+    file: run_job.yml
+  vars:
+    job_name: "{{ item }}"
+  run_once: true
+  # Loop over each provided job (possibly job group)
+  with_items: "{{ query('list', job) }}"
