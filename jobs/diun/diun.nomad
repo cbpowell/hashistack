@@ -27,7 +27,8 @@ job "diun" {
       
       env {
         # DIUN_PROVIDERS_DOCKER_ENDPOINT       = "unix:///var/run/docker.sock"
-        DIUN_NOTIF_DISCORD_WEBHOOKURL        = "{{ diun.webhook_url }}"
+        DIUN_NOTIF_DISCORD_WEBHOOKURL        = "{{ secrets.diun.webhook_url }}"
+        DIUN_NOTIF_DISCORD_TEMPLATEBODY      = "{{ diun.notification }}"
         DIUN_NOTIF_DISCORD_MENTIONS          = "@everyone"
         DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT = "true"
         DIUN_WATCH_SCHEDULE                  = "0 13 * * THU"
@@ -35,7 +36,7 @@ job "diun" {
       }
             
       config {
-        image        = "crazymax/diun:latest"
+        image        = "crazymax/diun:{{ diun.vers }}"
         
         mount {
           type = "bind"
