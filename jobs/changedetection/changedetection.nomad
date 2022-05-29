@@ -23,9 +23,15 @@ job "changedetection" {
       
       tags = [
         "traefik.enable=true",
+        "coredns.enabled",
+        "coredns.alias=changes",
         "traefik.http.routers.${NOMAD_JOB_NAME}.rule=Host(`changes.{{ net_subdomain }}`)",
         "traefik.http.routers.${NOMAD_JOB_NAME}.entryPoints=websecure",
       ]
+      
+      meta {
+        coredns-consul = "allow private"
+      }
 
       check {
         type     = "http"

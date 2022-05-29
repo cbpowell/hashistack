@@ -1,6 +1,24 @@
 ---
 # tasks file for dns-node
 
+- name: Handle new build of Coredns
+  block:
+    - name: Stop Coredns service
+      ansible.builtin.service:
+        name: coredns
+        state: stopped
+
+    - name: Send updated Coredns binary, if built
+      copy:
+        src: /tmp/coredns
+        dest: /usr/local/bin/coredns
+        owner: root
+        group: wheel
+        mode: '0555'
+      become: yes
+      notify: Restart CoreDNS
+  when: new_build | default(false) is true
+
 - name: Template Corefile
   ansible.builtin.template:
     src: Corefile.j2

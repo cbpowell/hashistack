@@ -23,9 +23,15 @@ job "uptimekuma" {
       
       tags = [
         "traefik.enable=true",
+        "coredns.enabled",
+        "coredns.alias=uptime",
         "traefik.http.routers.${NOMAD_JOB_NAME}.rule=Host(`uptime.{{ net_subdomain }}`)",
         "traefik.http.routers.${NOMAD_JOB_NAME}.entryPoints=websecure",
       ]
+      
+      meta {
+        coredns-consul = "allow private"
+      }
 
       check {
         type     = "http"

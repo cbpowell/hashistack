@@ -5,23 +5,6 @@
     patterns: "*.nomad"
   register: job_files
   delegate_to: 127.0.0.1
-  
-# - name: Generate job files
-#   set_fact:
-#     nomad_jobs_def: "{{ (nomad_jobs_def | default([])) + [{ 'name': (njob.path | basename | regex_replace('\\.nomad\\.j2')), 'definition' : lookup('template', njob.path)}] }}"
-#   with_items: "{{ query('list', job_files.files) }}"
-#   loop_control:
-#     loop_var: njob
-#     label: "{{ njob.path | basename }}"
-#
-# - name: Append traefik tag if traefik is enabled
-#   set_fact:
-#     job_service_tags: "{{ (job_service_tags | default([])) + [ndef.name] }}"
-#   when: (ndef.definition | regex_search('^\\s*#{0}\\s*traefik.enable?\\s?=\\s?true')) == ''
-#   with_items: "{{ query('list', nomad_jobs_def) }}"
-#   loop_control:
-#     loop_var: ndef
-#     label: "{{ ndef.name }}"
 
 - name: Save job file for inspection if specified
   template:

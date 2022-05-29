@@ -5,13 +5,28 @@ net_domain: theta142.com
 net_subdomain: "lab.{{ net_domain }}"
 home_tz: "America/Phoenix"
 
+# CoreDNS
+coredns_acl_zones: acl_zone private 10.7.0.0/16
+  
 # Hashicorp
-## Nomad
+## All
 dc_name: empiricist
+
+## Nomad
+
+## Consul
+consul_ui_hosts:
+  - '10.7.3.2'
+  - '10.7.3.3'
+  - '10.7.3.4'
+consul_ui_port: '8500'
+consul:
+  server_prefix: "{{ dc_name }}-cs"
 
 ## Vault
 vault:
   enabled: true
+  server_prefix: "{{ consul.server_prefix }}"
   address: "http://vault.service.consul:8200"
   plugins:
     - https://github.com/1Password/vault-plugin-secrets-onepassword/releases/download/v1.0.0/vault-plugin-secrets-onepassword_1.0.0_linux_amd64.zip
@@ -38,7 +53,12 @@ traefik:
 
 # Gitea
 gitea:
-  vers: "1.16.5"
+  vers: "1.16.7"
+  
+# # DIUN
+diun:
+  vers: latest
+  notification: '{% raw %}Docker tag {{ if .Entry.Image.HubLink }}[**{{ .Entry.Image }}**]({{ .Entry.Image.HubLink }}){{ else }}**{{ .Entry.Image }}**{{ end }} {{ if (eq .Entry.Status \"new\") }}is available{{ else }}has been updated{{ end }} (triggered by {{ .Meta.Hostname }} host).{% endraw %}'
 
 # Storage
 # Try not to go through VLANS for iSCSI!
@@ -47,10 +67,3 @@ fundament_host: "10.7.3.9"
 
 # # Common locations
 # docker_shared_volume: "{{ ansible_env.HOME }}/docker/shared"
-
-# Consul
-consul_ui_hosts:
-  - '10.7.3.2'
-  - '10.7.3.3'
-  - '10.7.3.4'
-consul_ui_port: '8500'

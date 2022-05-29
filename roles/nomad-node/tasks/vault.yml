@@ -70,7 +70,7 @@
       become: yes
       notify: Restart Nomad
     # End token update block
-    when: not stat_result.stat.exists or vault_nomad_regen_tokens
+    when: not stat_result.stat.exists or vault_nomad_regen_tokens | default(false)
   # Run block only when node in vault_nodes (i.e. servers)
   when: "'vault_nodes' in group_names"
   

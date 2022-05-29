@@ -40,7 +40,7 @@ encrypt = "{{ consul_gossip_key }}"
 # retry_join
 retry_join = [{% for host in consul_retry_join_hosts %}"{{ host }}"{% if not loop.last %},{% endif %}{% endfor %}]
 
-# recursors = [{% for host in consul_recursors %}"{{ host }}"{% if not loop.last %},{% endif %}{% endfor %}]
+# recursors = [{% for host in consul_recursors | default([]) %}"{{ host }}"{% if not loop.last %},{% endif %}{% endfor %}]
 
 ca_file = "/etc/consul.d/consul-agent-ca.pem"
 cert_file = "/etc/consul.d/{{ clientized_cert_name }}.pem"

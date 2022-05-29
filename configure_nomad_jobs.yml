@@ -53,11 +53,10 @@
       vars:
         job: mqtt
       tags: [service, infra, smarthome, mqtt ]
-      
-### Run traefik last, to get full service tags!
+  
     - import_role:
         name: nomad-job
       vars:
         job: traefik
-        combined_tags: "{{ (traefik.default_tags | default([])) + (traefik.publish_tags | default([])) }}"
-      tags: [ always, networking, traefik ]
+        # combined_tags: "{{ (traefik.default_tags | default([])) + (traefik.publish_tags | default([])) }}"
+      tags: [ networking, traefik ]

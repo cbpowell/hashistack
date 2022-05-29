@@ -45,7 +45,7 @@
   become: yes
     
 - block:
-  - name: Template node {{ policy_type }} policy files
+  - name: Template {{ policy_type }} policy files
     ansible.builtin.template:
       src: "{{ policy_type }}-policy.j2"
       dest: "/etc/consul.d/acls/{{ policy_type }}-policy-{{ item }}.hcl"

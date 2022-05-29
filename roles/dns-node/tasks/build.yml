@@ -1,0 +1,60 @@
+---
+- set_fact:
+    build_dir: "{{ ansible_env.HOME }}/build/coredns"
+  
+- name: Git checkout coredns
+  ansible.builtin.git:
+    repo: 'https://github.com/coredns/coredns.git'
+    dest: "{{ build_dir }}"
+    clone: yes
+    update: yes
+    accept_hostkey: yes
+    version: "{{ coredns_version }}"
+    force: yes
+    
+- command: git reset --hard
+  args:
+    chdir: "{{ build_dir }}"
+    
+- name: Template plugin config file
+  ansible.builtin.template:
+    src: plugin.cfg
+    dest: "{{ build_dir }}/plugin.cfg"
+
+- name: Template entrypoint script to run
+  ansible.builtin.template:
+    src: entrypoint.sh
+    dest: "{{ build_dir }}/entrypoint.sh"
+    mode: '0751'
+    
+- pause:
+    
+# Build manually because golang in docker is dumb
+
+# - name: Build coredns
+#   # Replicating: docker run --rm -i -t -v $PWD:/v -w /v golang:1.17 ...
+#   become: yes
+#   community.docker.docker_container:
+#     name: coredns-builder
+#     image: golang:1.17
+#     env:
+#       GO111MODULE: "on"
+#       PUID: "1000"
+#       PGID: "1000"
+#     container_default_behavior: compatibility
+#     entrypoint: /bin/sh entrypoint.sh
+#     cleanup: yes
+#     detach: false
+#     volumes:
+#       - "{{ build_dir }}:/v"
+#     working_dir: "/v"
+#   register: docker_out
+#
+# - debug:
+#     msg: "{{ docker_out }}"
+    
+- name: Grab build
+  fetch:
+    src: "{{ build_dir }}/coredns" 
+    dest: /tmp/coredns
+    flat: yes

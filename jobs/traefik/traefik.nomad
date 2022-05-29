@@ -26,14 +26,19 @@ job "traefik" {
       name = "traefik"
       
       tags = [
-        {% for tag in combined_tags %}
+        {% for tag in combined_tags | default([]) %}
         "{{ tag }}",
         {% endfor %}
         "traefik.enable=true",
+        "coredns.enabled",
         "traefik.http.routers.traefik.rule=Host(`traefik.{{ traefik.subdomain }}`)",
         "traefik.http.routers.traefik.entrypoints=websecure",
         "traefik.http.services.traefik.loadbalancer.server.port=${NOMAD_HOST_PORT_api}"
       ]
+      
+      meta {
+        coredns-consul = "allow private"
+      }
 
       check {
         name     = "alive"

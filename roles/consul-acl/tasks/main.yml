@@ -12,6 +12,19 @@
     import_tasks: generate-policy.yml
     vars:
       policy_type: default
+      
+  # Generate Consul server role and policy
+  - name: Configure Consul server role policy
+    import_tasks: generate-role-policy.yml
+    vars:
+      acl_role_type: consul-server
+    
+  - name: Configure Consul server role
+    import_tasks: generate-role.yml
+    vars:
+      acl_role_type: consul-server
+      
+  - pause:
   
   # Generate Nomad-server role and policy
   - name: Configure Nomad server role policy
@@ -45,17 +58,20 @@
     import_tasks: generate-role.yml
     vars:
       acl_role_type: vault-node
-      
-  # # Generate Portworx role and policy
-  # - name: Configure Portworx role policy
+  #
+  # - name: Pre-CoreDNS
+  #   pause:
+  #
+  # # Generate CoreDNS read access role, policy, and token
+  # - name: Configure CoreDNS role policy
   #   import_tasks: generate-role-policy.yml
   #   vars:
-  #     acl_role_type: portworx
+  #     acl_role_type: default
   #
-  # - name: Configure Portworx role
+  # - name: Configure CoreDNS role
   #   import_tasks: generate-role.yml
   #   vars:
-  #     acl_role_type: portworx
+  #     acl_role_type: vault-node
 
   # Generate agent tokens for each host
   - name: Configure agent tokens
@@ -101,18 +117,6 @@
       token_type: vault-node
       role_token: yes
       target: "{{ groups.vault_nodes }}"
-      
-  # - name: Pre Portworx role tokens
-  #   pause:
-  #
-  # # Generate Portworx token - only once, on server
-  # - name: Configure Portworx Token
-  #   import_tasks: generate-tokens.yml
-  #   vars:
-  #     token_type: portworx
-  #     role_token: yes
-  #     generic_token: yes
-  #     target: "{{ consul_command_server }}"
   
 - name: Localizing agents next
   pause:

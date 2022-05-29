@@ -19,7 +19,7 @@ plugin_directory = "/opt/vault/plugins"
 
 service_registration "consul" {
   token = "{{ lookup('vars', 'consul_' + inventory_hostname + '_vault_node_token') }}"
-  service_tags = "traefik.enable=true, traefik.http.routers.vault.tls=true, traefik.http.routers.vault.tls.certresolver=le, traefik.http.routers.vault.entrypoints=websecure, traefik.http.routers.vault.rule=Host(`vault.{{ net_subdomain }}`), traefik.http.services.vault.loadbalancer.server.port=8200, traefik.http.services.vault.loadbalancer.sticky.cookie=true"
+  service_tags = "coredns.enabled, coredns.aclignore, traefik.enable=true, traefik.http.routers.vault.tls=true, traefik.http.routers.vault.tls.certresolver=le, traefik.http.routers.vault.entrypoints=websecure, traefik.http.routers.vault.rule=Host(`vault.{{ net_subdomain }}`), traefik.http.services.vault.loadbalancer.server.port=8200, traefik.http.services.vault.loadbalancer.sticky.cookie=true"
 }
 
 listener "tcp" {

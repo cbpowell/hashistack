@@ -50,7 +50,7 @@
       src: "{{ acl_role_type }}-policy.j2"
       dest: "/etc/consul.d/acls/{{ new_policy_name }}.hcl"
   
-  - name: Create node {{ acl_role_type }} policy if needed
+  - name: Create {{ acl_role_type }} policy if needed
     ansible.builtin.command:
       cmd: "consul acl policy create -token {{ consul_http_token }} -name {{ new_policy_name }} -rules @acls/{{ new_policy_name }}.hcl"
       chdir: /etc/consul.d/

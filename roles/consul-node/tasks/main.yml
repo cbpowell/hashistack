@@ -19,8 +19,6 @@
     state: present
   become: yes
   
-- pause:
-  
 - name: Upgrade "consul" package if specified
   apt:
     name: consul
@@ -28,8 +26,6 @@
     state: latest
   become: yes
   tags: upgrade
-  
-- pause:
 
 - name: Configure Consul configuration directory
   file:
@@ -118,10 +114,10 @@
 - set_fact:
     clientized_cert_name: "{{ consul_dc_name }}-{{ consul_mode }}-{{ inventory_hostname }}"
   
-- debug:
-    var: client_cert_results
-  
-- pause:
+# - debug:
+#    var: client_cert_results
+#
+# - pause:
   
   ## Generate client certs if needed or specified
 - block:

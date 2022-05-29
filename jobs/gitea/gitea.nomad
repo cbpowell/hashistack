@@ -19,14 +19,20 @@ job "gitea" {
     }
 
     service {
-      name = "${NOMAD_JOB_NAME}"
+      name = "gitea"
       port = "http"
       
       tags = [
+        "coredns.enabled",
+        "coredns.alias=git",
         "traefik.enable=true",
         "traefik.http.routers.${NOMAD_JOB_NAME}.rule=Host(`git.{{ traefik.subdomain }}`)",
         "traefik.http.routers.${NOMAD_JOB_NAME}.entrypoints=websecure",
       ]
+      
+      meta {
+        coredns-consul = "allow private"
+      }
 
       check {
         name     = "alive"

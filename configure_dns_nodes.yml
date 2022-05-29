@@ -1,13 +1,30 @@
 ---
+- name: Build home Coredns server
+  gather_facts: true
+  hosts:
+    - nomad_clients
+  run_once: true 
+  tasks:
+    - name: Build Coredns on appropriate host
+      import_role:
+        name: dns-node
+        tasks_from: build.yml
+      tags: [build]
 
 - name: Configure DNS nodes
-  gather_facts: false
+  gather_facts: true
   hosts:
     - dns_servers
-  
-  tasks: 
-    - name: Run the DNS role
-      include_role:
+  tasks:
+    - name: Identify if new build was produced
+      set_fact:
+        new_build: true
+      tags: [build]
+        
+    - name: Run the DNS configuration role
+      import_role:
         name: dns-node
+        tasks_from: main.yml
+      tags: [always]
 
         

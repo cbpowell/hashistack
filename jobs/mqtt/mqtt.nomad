@@ -17,11 +17,16 @@ job "mqtt" {
       
       tags = [
         "traefik.enable=true",
+        "coredns.enabled",
         "traefik.tcp.routers.mqtt.rule=HostSNI(`*`)",
         "traefik.tcp.routers.mqtt.entryPoints=mqtt,mqttsecure",
-        "traefik.tcp.services.mqtt.loadbalancer.server.port=${NOMAD_HOST_PORT_mqtt}"
-        "traefik.tcp.services.mqtt.loadbalancer.server.port=${NOMAD_HOST_PORT_websock}"
+        "traefik.tcp.services.mqtt.loadbalancer.server.port=${NOMAD_HOST_PORT_mqtt}",
+        "traefik.tcp.services.mqtt.loadbalancer.server.port=${NOMAD_HOST_PORT_websock}",
       ]
+      
+      meta {
+        coredns-consul = "allow private"
+      }
 
       check {
         type     = "tcp"
