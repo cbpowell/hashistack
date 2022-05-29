@@ -25,46 +25,9 @@ job "bunker-node" {
     
     restart {
       interval = "5m"
-      attempts = 2
+      attempts = 10
       delay    = "15s"
       mode     = "fail"
-    }
-
-    task "node-sidecar" {
-      lifecycle {
-        hook = "poststart"
-        sidecar = true
-      }
-
-      driver = "docker"
-
-      env {
-        # Proxy to directory stated in csi_plugin
-        BIND_TO="unix:///csi/csi.sock"
-        PROXY_TO="unix:///csi/csi.sock.internal"
-      }
-
-      config {
-        image = "docker.io/democraticcsi/csi-grpc-proxy:latest"
-        
-        privileged = true
-        
-        # This probably isn't a good idea!
-        mount {
-          type = "bind"
-          target = "/csi"
-          source = "${var.data_dir}${var.csi_path}/${var.csi_plugin_id}"
-          readonly = false
-          bind_options {
-            propagation = "rshared"
-          }
-        }
-      }
-      
-      resources {
-        cpu    = 50
-        memory = 16
-      }
     }
     
     task "node" {
@@ -91,7 +54,7 @@ job "bunker-node" {
           "--driver-config-file=${NOMAD_SECRETS_DIR}/driver-config-file.yaml",
           "--log-level=info",
           "--csi-mode=node",
-          "--server-socket=/csi/csi.sock.internal",
+          "--server-socket=/csi/csi.sock",
         ]
 
         # node plugins must run as privileged jobs because they
