@@ -13,14 +13,6 @@ job "traefik" {
       port "mqttsecure" { static = 8883 }
       port "mqttws" { static = 9001 }
     }
-    
-    volume "traefik" {
-      attachment_mode = "file-system"
-      access_mode     = "single-node-writer"
-      type            = "csi"
-      read_only       = false
-      source          = "traefik"
-    }
 
     service {
       name = "traefik"
@@ -48,15 +40,73 @@ job "traefik" {
         timeout  = "2s"
       }
     }
+    
+    # ACME Updater sidecar script
+    task "acme-update" {
+      lifecycle {
+        hook = "poststart"
+        sidecar = true
+      }
+      
+      vault {
+        policies = ["networking-traefik-acme"]
+        change_mode   = "noop"
+      }
 
+      driver = "docker"
+
+      # Bootstrap script
+      template {
+        destination = "${NOMAD_TASK_DIR}/bootstrap.sh"
+        data        = <<EOF
+#!/bin/sh
+apk update
+apk add --no-cache jq
+apk add --no-cache curl
+
+# Uncomment and change volume below for testing
+# echo "Starting startup.sh.."
+# echo "*       *       *       *       *       run-parts /etc/periodic/1min" >> /etc/crontabs/root
+
+# Start crond
+crond -f -l 8
+EOF
+      }
+      
+      # Action script
+      template {
+        destination = "acme-push"
+        perms       = "755"
+        left_delimiter = "[%"
+        right_delimiter = "%]"
+        data        = <<EOF
+#!/bin/sh
+echo "Pushing current acme.json to Vault"
+# Push latest acme.json to Vault
+curl --header "X-Vault-Token: $VAULT_TOKEN" \
+     --request POST \
+     --data "$(jq -n --arg data "$(jq . [% env "NOMAD_ALLOC_DIR" %]/acme.json)" '{"data": {"json": $data }}')" \
+     --max-time 5 \
+     -sS http://vault.service.consul:8200/v1/secrets/data/traefik/acme
+EOF
+      }
+      
+      config {
+        image = "alpine:latest"
+        args  = [
+          "/bin/sh",
+          "-c",
+          "chmod 755 ${NOMAD_TASK_DIR}/bootstrap.sh && ${NOMAD_TASK_DIR}/bootstrap.sh"
+        ]
+        volumes = [
+          "acme-push:/etc/periodic/daily/acme-push:ro"
+        ]
+      }
+    }
+
+    # Traefik
     task "traefik" {
       driver = "docker"
-      
-      volume_mount {
-        volume      = "traefik"
-        destination = "/etc/traefik"
-        read_only   = false
-      }
             
       config {
         image        = "traefik:{{ traefik.vers }}"
@@ -69,7 +119,7 @@ job "traefik" {
       
       vault {
         policies = ["networking-traefik"]
-        change_mode   = "restart"
+        #change_mode   = "restart"
       }
       
       template {
@@ -78,11 +128,28 @@ job "traefik" {
         env = true
         left_delimiter = "[%"
         right_delimiter = "%]"
+        change_mode = "restart"
 
         data = <<EOH
 [% with secret "secrets/data/traefik/certresolver/cloudflare" %]
 CF_API_KEY=[% .Data.data.api_key %]
 CF_API_EMAIL=[% .Data.data.api_email %]
+[% end %]
+EOH
+      }
+      
+      template {
+        # Template initial acme.json from Vault
+        destination = "${NOMAD_ALLOC_DIR}/acme.json"
+        left_delimiter = "[%"
+        right_delimiter = "%]"
+        change_mode = "noop"
+        # Traefik requires 600 on acme.json
+        perms = "600"
+
+        data = <<EOH
+[% with secret "secrets/data/traefik/acme" %]
+[% .Data.data.json %]
 [% end %]
 EOH
       }
@@ -92,7 +159,7 @@ EOH
         destination = "${NOMAD_TASK_DIR}/traefik.yml"
         left_delimiter = "[%"
         right_delimiter = "%]"
-        
+        change_mode = "restart"
         data = <<EOF
 log:
   level: {{ traefik.log_level | default("ERROR") }}
@@ -141,9 +208,14 @@ certificatesResolvers:
   le:
     acme:
       email: [% .Data.data.api_email %]
-      storage: "/etc/traefik/acme.json"
+      # storage: "/etc/traefik/acme.json"
+      storage: "[% env "NOMAD_ALLOC_DIR" %]/acme.json"
       dnsChallenge:
         provider: cloudflare
+        # Use an external resolvers to avoid conflict with CoreDNS and dnsChallenge!
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
 [% end %]
 
 # Enable Consul Catalog configuration backend.
