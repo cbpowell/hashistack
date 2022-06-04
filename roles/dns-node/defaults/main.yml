@@ -12,4 +12,4 @@ coredns_enable_tag: coredns.enabled
 coredns_srv_proxy: traefik
 coredns_srv_proxy_tag: traefik.enable=true
 coredns_acl_zones: acl_zone private 10.0.0.0/24
-coredns_ttl: 10m
+coredns_ttl: 5m

@@ -10,13 +10,13 @@
         name: nomad-job
       vars:
         job: bunker
-      tags: [system, storage, democratic-csi]
+      tags: [system, storage, csi, bunker]
       
     - import_role:
         name: nomad-job
       vars:
         job: fundament
-      tags: [system, storage, democratic-csi]
+      tags: [system, storage, csi, fundament]
       
     - import_role:
         name: nomad-job

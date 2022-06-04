@@ -7,6 +7,7 @@ home_tz: "America/Phoenix"
 
 # CoreDNS
 coredns_acl_zones: acl_zone private 10.7.0.0/16
+coredns_ttl: 1m
   
 # Hashicorp
 ## All
@@ -33,7 +34,7 @@ vault:
 
 # Democratic CSI
 democratic_csi:
-  vers: v1.6.2
+  vers: v1.6.3
 
 # Traefik
 traefik:
@@ -55,7 +56,7 @@ traefik:
 gitea:
   vers: "1.16.7"
   
-# # DIUN
+# DIUN
 diun:
   vers: latest
   notification: '{% raw %}Docker tag {{ if .Entry.Image.HubLink }}[**{{ .Entry.Image }}**]({{ .Entry.Image.HubLink }}){{ else }}**{{ .Entry.Image }}**{{ end }} {{ if (eq .Entry.Status \"new\") }}is available{{ else }}has been updated{{ end }} (triggered by {{ .Meta.Hostname }} host).{% endraw %}'
