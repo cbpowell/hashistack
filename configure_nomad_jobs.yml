@@ -35,6 +35,12 @@
       vars:
         job: diun
       tags: [system, monitoring, diun]
+      
+    - import_role:
+        name: nomad-job
+      vars:
+        job: grafana
+      tags: [system, monitoring, grafana]
     
     - import_role:
         name: nomad-job
@@ -53,6 +59,11 @@
       vars:
         job: mqtt
       tags: [service, infra, smarthome, mqtt ]
+    - import_role:
+        name: nomad-job
+      vars:
+        job: teslamate
+      tags: [service, smarthome, auto, teslamate]
   
     - import_role:
         name: nomad-job

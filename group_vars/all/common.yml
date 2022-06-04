@@ -60,6 +60,16 @@ diun:
   vers: latest
   notification: '{% raw %}Docker tag {{ if .Entry.Image.HubLink }}[**{{ .Entry.Image }}**]({{ .Entry.Image.HubLink }}){{ else }}**{{ .Entry.Image }}**{{ end }} {{ if (eq .Entry.Status \"new\") }}is available{{ else }}has been updated{{ end }} (triggered by {{ .Meta.Hostname }} host).{% endraw %}'
 
+# Teslamate
+teslamate:
+  db_server: "10.7.1.27"
+  mqtt_server: "10.7.1.17"
+  
+# Grafana
+grafana:
+  image: teslamate/grafana
+  vers: latest
+
 # Storage
 # Try not to go through VLANS for iSCSI!
 bunker_host: "10.7.3.9"
