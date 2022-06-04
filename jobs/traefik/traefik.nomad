@@ -186,15 +186,18 @@ entryPoints:
   mqtt:
     address: ":[% env "NOMAD_HOST_PORT_mqtt" %]"
   
+  mqttws:
+    address: ":[% env "NOMAD_HOST_PORT_mqttws" %]"
+  
   mqttsecure:
     address: ":[% env "NOMAD_HOST_PORT_mqttsecure" %]"
-    http:
-      tls:
-        certResolver: le
-        domains:
-          - main: lab.theta142.com
-            sans:
-              - "*.lab.theta142.com"
+    #http:
+    #  tls:
+    #    certResolver: le
+    #    domains:
+    #      - main: lab.theta142.com
+    #        sans:
+    #          - "*.lab.theta142.com"
   
   traefik:
     address: ":[% env "NOMAD_HOST_PORT_api" %]"
