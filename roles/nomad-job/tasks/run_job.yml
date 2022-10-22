@@ -5,25 +5,47 @@
     patterns: "*.nomad"
   register: job_files
   delegate_to: 127.0.0.1
-
-- name: Save job file for inspection if specified
-  template:
-    src: "{{ job_file.path }}"
-    dest: jobs/{{ job_name }}/{{ job_file.path | basename }}
+  
+- name: Parse job files into specs
+  set_fact:
+    job_specs_pre: "{{ job_specs_pre | default({}) | combine({ (job_file.path | basename) : lookup('template', job_file.path)}) }}"
   with_items: "{{ query('list', job_files.files) }}"
   loop_control:
     loop_var: job_file
     label: "{{ job_file.path | basename }}"
-  when: job_inspect is true
+  
+# See https://danielabaron.me/blog/nomad-tips-and-tricks/#always-deploy-a-new-job-version 
+- name: Apply unique version meta tag if specified
+  set_fact:
+    job_specs_unique: "{{ job_specs_unique | default({}) | combine({job_spec_r.key : job_spec_r.value | regex_replace('^job \"(?P<job>[a-z]+)\"\\s?{', 'job \"\\g<job>\" {\n  meta {\n    run_uuid = \"${uuidv4()}\"\n  }', multiline=True)}) }}"
+  with_items: "{{ job_specs_pre | dict2items }}"
+  loop_control:
+    loop_var: job_spec_r
+    label: "{{ job_spec_r.key }}"
+  when: unique_job is defined
 
+- name: Finalize job specs
+  set_fact:
+    job_specs: "{{ job_specs_unique | default(job_specs_pre) }}"
+
+- name: Save job file for inspection if specified
+  copy:
+    content: "{{ job_spec.value }}"
+    dest: "jobs/{{ job_name }}/{{ job_spec.key }}"
+  with_items: "{{ job_specs | dict2items }}"
+  loop_control:
+    loop_var: job_spec
+    label: "{{ job_spec.key }}"
+  when: job_inspect is defined
+  
 - name: Run Nomad jobs
   ansible.builtin.command:
     cmd: nomad job run -detach -
-    stdin: "{{ lookup('template', job_file.path) }}"
+    stdin: "{{ job_spec.value }}"
   environment:
     NOMAD_TOKEN: "{{ nomad_root_token }}"
   register: job_output
-  with_items: "{{ query('list', job_files.files) }}"
+  with_items: "{{ job_specs | dict2items }}"
   loop_control:
-    loop_var: job_file
-    label: "{{ job_file.path | basename }}"
+    loop_var: job_spec
+    label: "{{ job_spec.key }}"
