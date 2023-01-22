@@ -1,6 +1,6 @@
 ---
 quick_volumes:
-  - volume_id:    gitea
-    volume_name:  gitea
+  - volume_id:    grafana
+    volume_name:  grafana
     plugin_id:    org.democratic-csi.iscsi.fundament
-    
+    size: 1GiB

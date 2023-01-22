@@ -9,17 +9,22 @@ variables {
 job "fundament-controller" {
   datacenters = ["{{ dc_name }}"]
   type        = "service"
+  
+  # Always deploy a unique version
+  meta {
+    run_uuid = "${uuidv4()}"
+  }
 
   group "controller" {
     restart {
-      interval = "5m"
+      interval = "15m"
       attempts = 5
       delay    = "15s"
-      mode     = "fail"
+      mode     = "delay"
     }
     
     reschedule {
-     delay          = "5m"
+     delay          = "3m"
      delay_function = "constant"
      unlimited      = true
     }
@@ -42,7 +47,7 @@ job "fundament-controller" {
           # must match the csi_plugin.id attribute below
           "--csi-name=${var.csi_plugin_id}",
           "--driver-config-file=${NOMAD_SECRETS_DIR}/driver-config-file.yaml",
-          "--log-level=info",
+          "--log-level=debug",
           "--csi-mode=controller",
           "--server-socket=/csi/csi.sock",
         ]

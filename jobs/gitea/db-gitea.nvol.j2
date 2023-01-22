@@ -1,0 +1,16 @@
+id           = "db-gitea"
+name         = "db-gitea"
+type         = "csi"
+plugin_id    = "org.democratic-csi.local.homebound"
+
+capacity_min = "1GiB"
+capacity_max = "3GiB"
+
+capability {
+  access_mode     = "single-node-writer"
+  attachment_mode = "file-system"
+}
+
+mount_options {
+  mount_flags = ["rw", "noatime"]
+}

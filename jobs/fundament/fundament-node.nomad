@@ -10,6 +10,11 @@ job "fundament-node" {
   datacenters = ["{{ dc_name }}"]
   type        = "system"
   
+  # Always deploy a unique version
+  meta {
+    run_uuid = "${uuidv4()}"
+  }
+  
   constraint {
     operator = "distinct_hosts"
     value = true
@@ -47,7 +52,7 @@ job "fundament-node" {
           # must match the csi_plugin.id attribute below
           "--csi-name=${var.csi_plugin_id}",
           "--driver-config-file=${NOMAD_SECRETS_DIR}/driver-config-file.yaml",
-          "--log-level=info",
+          "--log-level=debug",
           "--csi-mode=node",
           "--server-socket=/csi/csi.sock",
         ]
@@ -57,6 +62,14 @@ job "fundament-node" {
         privileged = true
         ipc_mode = "host"
         network_mode = "host"
+        
+        # Needed for: https://github.com/democratic-csi/democratic-csi/issues/215
+        mount {
+          type = "bind"
+          target = "/run/udev"
+          source = "/run/udev"
+          readonly = true
+        }
         
         mount {
           type = "bind"

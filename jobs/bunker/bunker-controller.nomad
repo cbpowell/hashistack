@@ -9,6 +9,11 @@ variables {
 job "bunker-controller" {
   datacenters = ["{{ dc_name }}"]
   type        = "service"
+  
+  # Always deploy a unique version
+  meta {
+    run_uuid = "${uuidv4()}"
+  }
 
   group "controller" {
     restart {

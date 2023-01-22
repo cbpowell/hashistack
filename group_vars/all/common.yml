@@ -21,6 +21,7 @@ consul_ui_hosts:
   - '10.7.3.3'
   - '10.7.3.4'
 consul_ui_port: '8500'
+# consul_skip_ca: yes
 consul:
   server_prefix: "{{ dc_name }}-cs"
 
@@ -34,7 +35,7 @@ vault:
 
 # Democratic CSI
 democratic_csi:
-  vers: v1.6.3
+  vers: v1.7.6
 
 # Traefik
 traefik:
@@ -54,7 +55,17 @@ traefik:
 
 # Gitea
 gitea:
-  vers: "1.16.7"
+  vers: "1.17.3"
+  
+# Backup (Databases)
+backup:
+  postgres:
+    local:
+      image: theta142/postgres-backup-minio
+      vers: "0.3.0"
+    remote:
+      image: theta142/postgres-backup-minio
+      vers: "0.3.0"
   
 # DIUN
 diun:
@@ -63,18 +74,43 @@ diun:
 
 # Teslamate
 teslamate:
-  db_server: "10.7.1.27"
-  mqtt_server: "10.7.1.17"
+  vers: "latest"
+  db_server: "teslamate-db.{{ net_subdomain }}"
+  mqtt_server: "mqtt.{{ net_subdomain }}"
   
 # Grafana
 grafana:
   image: teslamate/grafana
   vers: latest
 
+# Loki
+loki:
+  vers: latest
+  
+# Promtail
+promtail:
+  vers: latest
+  
+# Prometheus
+prometheus:
+  vers: latest
+  
+# Scratch Map
+scratch_map:
+  vers: latest
+  
+# Scrypted
+scrypted:
+  vers: latest
+
+# Homepage
+homepage:
+  vers: latest
+  
 # Storage
 # Try not to go through VLANS for iSCSI!
-bunker_host: "10.7.3.9"
-fundament_host: "10.7.3.9"
+bunker_host: "10.7.70.1" #"10.7.3.9"
+fundament_host: "10.7.70.1" #"10.7.3.9"
 
 # # Common locations
 # docker_shared_volume: "{{ ansible_env.HOME }}/docker/shared"

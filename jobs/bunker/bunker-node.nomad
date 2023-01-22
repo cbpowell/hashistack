@@ -10,6 +10,11 @@ job "bunker-node" {
   datacenters = ["{{ dc_name }}"]
   type        = "system"
   
+  # Always deploy a unique version
+  meta {
+    run_uuid = "${uuidv4()}"
+  }
+  
   constraint {
     operator = "distinct_hosts"
     value = true
@@ -62,6 +67,14 @@ job "bunker-node" {
         privileged = true
         ipc_mode = "host"
         network_mode = "host"
+        
+        # Needed for: https://github.com/democratic-csi/democratic-csi/issues/215
+        mount {
+          type = "bind"
+          target = "/run/udev"
+          source = "/run/udev"
+          readonly = true
+        }
         
         mount {
           type = "bind"

@@ -12,6 +12,8 @@ job "traefik" {
       port "mqtt" { static = 1883 }
       port "mqttsecure" { static = 8883 }
       port "mqttws" { static = 9001 }
+      port "postgres" { static = 5432 }
+      port "loki" { static = 3100 }
     }
 
     service {
@@ -119,7 +121,7 @@ EOF
       
       vault {
         policies = ["networking-traefik"]
-        #change_mode   = "restart"
+        change_mode   = "restart"
       }
       
       template {
@@ -199,8 +201,14 @@ entryPoints:
     #        sans:
     #          - "*.lab.theta142.com"
   
-  traefik:
-    address: ":[% env "NOMAD_HOST_PORT_api" %]"
+  postgres:
+    address: ":[% env "NOMAD_HOST_PORT_postgres" %]"
+    
+  loki:
+    address: ":[% env "NOMAD_HOST_PORT_loki" %]"
+  
+  #traefik:
+  #  address: ":[% env "NOMAD_HOST_PORT_api" %]"
 
 api:
   dashboard: true
@@ -234,7 +242,7 @@ EOF
 
       resources {
        cpu    = 75
-       memory = 64
+       memory = 128
       }
     }
   }

@@ -1,3 +1,9 @@
+variables {
+  data_dir = "/data"
+  data_uid = 1000
+  data_gid = 1000
+}
+
 job "gitea" {
   datacenters = ["{{ dc_name }}"]
   type        = "service"
@@ -47,21 +53,24 @@ job "gitea" {
       driver = "docker"
       
       env {
-        USER_UID = 1000
-        USER_GID = 1000
-        GITEA_CUSTOM = "${NOMAD_SECRETS_DIR}"
+        USER_UID = "${var.data_uid}"
+        USER_GID = "${var.data_gid}"
+        GITEA_CUSTOM = "/etc/gitea" #"${NOMAD_TASK_DIR}"
       }
       
       # Main data on csi volume
       volume_mount {
         volume      = "gitea"
-        destination = "/data"
+        destination = "${var.data_dir}"
         read_only   = false
       }
             
       config {
         image        = "gitea/gitea:{{ gitea.vers }}"
         ports = ["http", "ssh"]
+        volumes = [
+          "local/app.ini:/etc/gitea/conf/app.ini",
+        ]
         
         mount {
           type = "bind"
@@ -80,19 +89,24 @@ job "gitea" {
       
       vault {
         policies = ["gitea"]
-        change_mode   = "restart"
       }
 
       template {
         # Template config
-        destination = "${NOMAD_SECRETS_DIR}/conf/app.ini"
+        destination = "local/app.ini"
+        uid = "${var.data_uid}"
+        gid = "${var.data_gid}"
+        perms = "0600" # Gitea will change this anyway
         left_delimiter = "[%"
         right_delimiter = "%]"
+        change_mode = "restart"
         data = <<EOH
-[% with secret "secrets/data/gitea/secrets" %]
 APP_NAME = theta142
 RUN_MODE = prod
 RUN_USER = git
+
+[security]
+INSTALL_LOCK = true
 
 [repository]
 ROOT = /data/git/repositories
@@ -103,6 +117,7 @@ LOCAL_COPY_PATH = /data/gitea/tmp/local-repo
 [repository.upload]
 TEMP_PATH = /data/gitea/uploads
 
+[% with secret "secrets/data/gitea/secrets" %]
 [server]
 APP_DATA_PATH    = /data/gitea
 DOMAIN           = git.{{ traefik.subdomain }}
@@ -112,22 +127,29 @@ ROOT_URL         = https://git.{{ traefik.subdomain }}/
 DISABLE_SSH      = false
 SSH_PORT         = 22
 SSH_LISTEN_PORT  = 22
-LFS_START_SERVER = true
-LFS_CONTENT_PATH = /data/git/lfs
-LFS_JWT_SECRET   = [% .Data.data.LFS_JWT_SECRET %]
 OFFLINE_MODE     = false
+
+[security]
+INSTALL_LOCK                  = true
+SECRET_KEY                    =
+REVERSE_PROXY_LIMIT           = 1      
+REVERSE_PROXY_TRUSTED_PROXIES = *
+INTERNAL_TOKEN                = [%- .Data.data.INTERNAL_TOKEN -%]
+PASSWORD_HASH_ALGO            = pbkdf2
+[% end %]
                                                               
 [database]
-PATH     = /data/gitea/gitea.db
-DB_TYPE  = sqlite3
-HOST     = localhost:3306
+DB_TYPE  = postgres
+[% range service "db-gitea" %]
+HOST     = [%- .Address -%]:[%- .Port -%]
+[% end %]
 NAME     = gitea
-USER     = root
-PASSWD   =                                                    
+USER     = gitea
+[% with secret "secrets/data/gitea/config" %]
+PASSWD   = [%- .Data.data.DATABASE_PASS -%]
+[% end %]
 LOG_SQL  = false
-SCHEMA   =
 SSL_MODE = disable
-CHARSET  = utf8
 
 [indexer]
 ISSUE_INDEXER_PATH = /data/gitea/indexers/issues.bleve
@@ -151,14 +173,6 @@ LEVEL     = info
 ROUTER    = console
 ROOT_PATH = /data/gitea/log
 
-[security]
-INSTALL_LOCK                  = true
-SECRET_KEY                    =
-REVERSE_PROXY_LIMIT           = 1      
-REVERSE_PROXY_TRUSTED_PROXIES = *
-INTERNAL_TOKEN                = [% .Data.data.INTERNAL_TOKEN %]
-PASSWORD_HASH_ALGO            = pbkdf2
-
 [service]
 DISABLE_REGISTRATION              = false
 REQUIRE_SIGNIN_VIEW               = false
@@ -177,14 +191,91 @@ ENABLED = false
 [openid]
 ENABLE_OPENID_SIGNIN = true
 ENABLE_OPENID_SIGNUP = true
-[% end %]
 EOH
       }
 
       resources {
        cpu    = 100
-       memory = 256
+       memory = 350
       }
+    }
+  }
+  
+  group "db-gitea" {
+    count = 1
+
+    network {
+      port "db" { to = "5432" }
+    }
+  
+    volume "db-gitea" {
+      attachment_mode = "file-system"
+      access_mode     = "single-node-writer"
+      type            = "csi"
+      read_only       = false
+      source          = "db-gitea"
+    }
+  
+    service  {
+      name = "db-gitea"
+      port = "db"
+      
+      check {
+        type     = "tcp"
+        port     = "db"
+        interval = "60s"
+        timeout  = "4s"
+      }
+    }
+
+    task "db-gitea" {
+      driver = "docker"
+    
+      env {
+        PUID = 1000
+        PGID = 1000
+      }
+    
+      volume_mount {
+        volume      = "db-gitea"
+        destination = "/var/lib/postgresql/data"
+        read_only   = false
+      }
+    
+      config {
+        image = "postgres:14"
+        ports = ["db"]
+      }
+      
+      lifecycle {
+        hook    = "prestart"
+        sidecar = false
+      }
+      
+      vault {
+        policies = ["gitea"]
+        change_mode   = "restart"
+      }
+    
+      template {
+        destination = "secrets/file.env"
+        env = true
+        left_delimiter = "[%"
+        right_delimiter = "%]"
+        change_mode = "restart"
+        data = <<EOH
+[% with secret "secrets/data/gitea/config" %]
+POSTGRES_DB=gitea
+POSTGRES_USER=gitea
+POSTGRES_PASSWORD=[% .Data.data.DATABASE_PASS %]
+[% end %]
+EOH
+      }
+
+      /*resources {
+        cpu    = 200
+        memory = 150
+      }*/
     }
   }
 }

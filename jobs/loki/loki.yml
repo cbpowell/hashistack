@@ -1,6 +1,6 @@
 ---
 quick_volumes:
-  - volume_id:    gitea
-    volume_name:  gitea
+  - volume_id:    loki
+    volume_name:  loki
     plugin_id:    org.democratic-csi.iscsi.fundament
-    
+    size: 10GiB

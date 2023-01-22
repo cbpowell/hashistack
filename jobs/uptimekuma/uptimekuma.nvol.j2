@@ -1,0 +1,16 @@
+id           = "uptimekuma"
+name         = "uptimekuma"
+type         = "csi"
+plugin_id    = "org.democratic-csi.local.homebound"
+
+capacity_min = "1GiB"
+capacity_max = "1GiB"
+
+capability {
+  access_mode     = "single-node-writer"
+  attachment_mode = "file-system"
+}
+
+mount_options {
+  mount_flags = ["rw", "noatime"]
+}

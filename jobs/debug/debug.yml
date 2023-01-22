@@ -1,0 +1,6 @@
+---
+quick_volumes:
+  - volume_id:    debug
+    volume_name:  debug
+    plugin_id:    org.democratic-csi.local.homebound
+    mount_options: false

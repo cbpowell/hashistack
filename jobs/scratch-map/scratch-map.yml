@@ -1,0 +1,6 @@
+---
+quick_volumes:
+  - volume_id:    scratch-map
+    volume_name:  scratch-map
+    plugin_id:    org.democratic-csi.iscsi.fundament
+    size:         1GiB
