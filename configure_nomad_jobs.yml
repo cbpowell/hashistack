@@ -21,8 +21,26 @@
     - import_role:
         name: nomad-job
       vars:
+        job: homebound
+      tags: [system, storage, csi, homebound]
+      
+    - import_role:
+        name: nomad-job
+      vars:
+        job: backup
+      tags: [service, backup]
+      
+    - import_role:
+        name: nomad-job
+      vars:
         job: gitea
       tags: [service, dev, gitea]
+    
+    - import_role:
+        name: nomad-job
+      vars:
+        job: scrypted
+      tags: [service, smarthome, security, scrypted]
       
     # - import_role:
     #     name: nomad-job
@@ -59,11 +77,48 @@
       vars:
         job: mqtt
       tags: [service, infra, smarthome, mqtt ]
+      
+    - import_role:
+        name: nomad-job
+      vars:
+        job: homepage
+      tags: [service, monitoring, dashboard, homepage]
+      
     - import_role:
         name: nomad-job
       vars:
         job: teslamate
       tags: [service, smarthome, auto, teslamate]
+    
+    - import_role:
+        name: nomad-job
+      vars:
+        job: loki
+      tags: [service, monitoring, logs, loki]
+      
+    - import_role:
+        name: nomad-job
+      vars:
+        job: promtail
+      tags: [system, monitoring, logs, promtail]
+      
+    - import_role:
+        name: nomad-job
+      vars:
+        job: prometheus
+      tags: [service, monitoring, prometheus]
+    
+    - import_role:
+        name: nomad-job
+      vars:
+        job: debug
+      tags: [debug]
+      
+    - import_role:
+        name: nomad-job
+      vars:
+        job: scratch-map
+      tags: [service, scratch-map]
   
     - import_role:
         name: nomad-job
