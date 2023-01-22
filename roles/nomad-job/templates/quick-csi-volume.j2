@@ -6,17 +6,19 @@ plugin_id    = "{{ plugin_id }}"
 capacity_min = "{{ volume_min }}"
 capacity_max = "{{ volume_max }}"
 
-capability {
-  access_mode     = "single-node-reader-only"
-  attachment_mode = "file-system"
-}
+# capability {
+#   access_mode     = "single-node-reader-only"
+#   attachment_mode = "file-system"
+# }
 
 capability {
   access_mode     = "single-node-writer"
   attachment_mode = "file-system"
 }
 
+{% if mount_options %}
 mount_options {
   fs_type     = "ext4"
   mount_flags = ["rw", "noatime"]
 }
+{% endif %}

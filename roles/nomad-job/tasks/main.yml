@@ -16,3 +16,4 @@
   run_once: true
   # Loop over each provided job (possibly job group)
   with_items: "{{ query('list', job) }}"
+  when: prepare_jobs_only | default(true)

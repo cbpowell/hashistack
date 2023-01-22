@@ -81,6 +81,7 @@
     volume_min: "{{ nvol.size_min | default(nvol.size) | default('1Gib') }}"
     volume_max: "{{ nvol.size_max | default(nvol.size) | default('1Gib') }}"
     plugin_id: "{{ nvol.plugin_id }}"
+    mount_options: "{{ nvol.mount_options | default(true) }}"
     nvol_name: "{{ nvol.volume_name }}"
     nvol_definition: "{{ lookup('template', 'quick-csi-volume.j2') }}"
   with_items: "{{ query('list', nomad_job_vars.quick_volumes) }}"
