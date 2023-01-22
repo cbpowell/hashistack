@@ -7,3 +7,13 @@ bind_addr = "0.0.0.0"
 acl {
   enabled = true
 }
+
+{% if nomad_metrics is true %}
+telemetry {
+  collection_interval = "{{ nomad_metrics_interval }}"
+  disable_hostname = {{ nomad_metrics_disable_hostname | lower }}
+  prometheus_metrics = {{ nomad_metrics_prometheus_metrics | lower }}
+  publish_allocation_metrics = {{ nomad_metrics_publish_allocation_metrics | lower }}
+  publish_node_metrics = {{ nomad_metrics_publish_node_metrics | lower }}
+}
+{% endif %}

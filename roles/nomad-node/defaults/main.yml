@@ -1,2 +1,10 @@
 ---
 # defaults file for nomad-node
+
+# Default Metrics Config
+nomad_metrics: false
+nomad_metrics_interval: 5s
+nomad_metrics_disable_hostname: false
+nomad_metrics_prometheus_metrics: true
+nomad_metrics_publish_allocation_metrics: true
+nomad_metrics_publish_node_metrics: true
