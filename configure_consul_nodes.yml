@@ -8,8 +8,6 @@
     - name: Run the Consul role
       include_role:
         name: consul-node
-      vars:
-        consul_config_acls: yes
   tags: always
 
 - name: Configure Consul ACLs
