@@ -51,56 +51,41 @@
   register: cert_authority_installed
   become: yes
   
-- name: Generate cert authority if needed
-  ansible.builtin.command:
-    cmd: consul tls ca create
-    chdir: /etc/consul.d/
-    creates: /etc/consul.d/consul-agent-ca*
-  become: yes
+- block:
+    - name: Generate cert authority if needed
+      ansible.builtin.command:
+        cmd: consul tls ca create
+        chdir: /etc/consul.d/
+        # Use when check to allow override instead?
+        creates: /etc/consul.d/consul-agent-ca*
+      become: yes
+      
+    - name: Pull cert file from command server
+      fetch:
+        src: /etc/consul.d/consul-agent-ca.pem
+        dest: certs/consul-agent-ca.pem
+        flat: yes
+      #delegate_to: "{{ consul_command_server }}"
+      become: yes
+      
+    - name: Pull cert key file from command server
+      fetch:
+        src: /etc/consul.d/consul-agent-ca-key.pem
+        dest: certs/consul-agent-ca-key.pem
+        flat: yes
+      #delegate_to: "{{ consul_command_server }}"
+      become: yes
+
   when:
     - consul_mode == 'server'
     - "(not consul_command_server) or (consul_command_server == inventory_hostname)"
   
   # If client mode, or non-command server, grab cert authority from command server
-- block:
-    - name: Archive CA
-      community.general.archive:
-        path:
-          - /etc/consul.d/consul-agent-ca.pem
-          - /etc/consul.d/consul-agent-ca-key.pem
-        dest: /tmp/consul-ca.tgz
-      delegate_to: "{{ consul_command_server }}"
-        
-    - name: Slurp cert archive from command server
-      slurp:
-        src: /tmp/consul-ca.tgz
-      delegate_to: "{{ consul_command_server }}"
-      register: ca_encoded
-      
-    - name: Delete cert archive from command server
-      file:
-        path: /tmp/consul-ca.tgz
-        state: absent
-      delegate_to: "{{ consul_command_server }}"
-      
-    - name: Save cert archive to client
-      copy:
-        content: "{{ ca_encoded.content | b64decode }}"
-        dest: /etc/consul.d/consul-ca.tgz
-      become: yes
-      
-    - name: Delete cert archive from client
-      file:
-        path: /etc/consul.d/consul-ca.tgz
-        state: absent
-      
-    - name: Unarchive certs on client
-      ansible.builtin.unarchive:
-        src: /etc/consul.d/consul-ca.tgz
-        dest: /etc/consul.d
-        remote_src: yes
-      become: yes
-        
+- name: Save cert file to client
+  copy:
+    src: certs/consul-agent-ca.pem
+    dest: /etc/consul.d/consul-agent-ca.pem
+  become: yes   
   when: not consul_skip_ca | default(False)
   
   # Client certificate setup
@@ -191,8 +176,21 @@
     - ((client_cert_results.matched < 2) or (regenerate_client_certs is defined))
     
 - pause:
+  
+- name: Find any previous config HCL files
+  find:
+    paths: /etc/consul.d/
+    patterns: "^*.hcl"
+    use_regex: true
+  register: config_files_to_delete
+
+- name: Clean up any found config HCL files
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ config_files_to_delete.files }}"
     
-- name: Template consul.hcl.j2 to /etc/consul.d/consul.hcl
+- name: Template base config to /etc/consul.d/consul.hcl
   ansible.builtin.template:
     src: consul.hcl.j2
     dest: /etc/consul.d/consul.hcl

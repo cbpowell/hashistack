@@ -5,10 +5,19 @@
   hosts:
     - vault_nodes
   tasks:
-    ### Run Nomad role
+    ### Run Vault role
     - name: Run the Vault role
       include_role:
         name: vault-node
+        
+    ### Configure vault after startup
+    - name: Run the post-startup configuration task
+      include_role:
+        name: vault-node
+        tasks_from: post_configure.yml
+      # Run only once, on at least one of the Vault nodes
+      run_once: true
+      
   tags: always
 
         

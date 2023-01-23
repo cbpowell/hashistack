@@ -63,8 +63,22 @@
     state: "{{ 'started' if vault_start | default(true) else 'stopped' }}"
     masked: no
   become: yes
+  
+- name: Find any previous config HCL files
+  find:
+    paths: /etc/vault.d/
+    patterns: "^*.hcl"
+    use_regex: true
+    excludes: "vault.hcl"
+  register: config_files_to_delete
 
-- name: Template config.hcl.j2 to /etc/vault.d/config.hcl
+- name: Clean up any found config HCL files
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ config_files_to_delete.files }}"
+
+- name: Template config.hcl.j2 to /etc/vault.d/vault.hcl
   ansible.builtin.template:
     src: vault.hcl.j2
     dest: /etc/vault.d/vault.hcl

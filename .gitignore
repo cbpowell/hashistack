@@ -1,2 +1,4 @@
 vault_pass.*
 *_token_storage.yaml
+certs/*
+backup_files/*
