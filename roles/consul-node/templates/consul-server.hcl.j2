@@ -24,8 +24,8 @@ auto_config {
   authorization {
 	  enabled = true
 		static {
-			oidc_discovery_url = "http://vault.lb.lab.theta142.com:8200/v1/identity/oidc"
-			bound_issuer = "http://vault.lb.lab.theta142.com:8200/v1/identity/oidc"
+			oidc_discovery_url = "{{ vault_token_issuer_url }}/v1/identity/oidc"
+			bound_issuer = "{{ vault_token_issuer_url }}/v1/identity/oidc"
 			bound_audiences = ["{{ consul_dc_name }}"]
 			claim_mappings {
 				"/consul/hostname" = "node_name"
