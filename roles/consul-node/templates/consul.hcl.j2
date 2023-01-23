@@ -3,6 +3,9 @@
 # datacenter
 datacenter = "{{ consul_dc_name }}"
 
+# node name
+node_name = "{{ node_name }}"
+
 # data_dir
 # This flag provides a data directory for the agent to store state. This is required
 # for all agents. The directory should be durable across reboots. This is especially
@@ -27,12 +30,9 @@ ui_config {
   enabled = {{ consul_ui_value }}
 }
 
-# server
-# This flag is used to control if an agent is in server or client mode.
-server = {{ consul_server_bool }}
-
-# bootstrap_expect
-{{ consul_bootstrap_output }}
+auto_encrypt {
+  allow_tls = true
+}
 
 # encrypt
 encrypt = "{{ consul_gossip_key }}"
@@ -40,17 +40,9 @@ encrypt = "{{ consul_gossip_key }}"
 # retry_join
 retry_join = [{% for host in consul_retry_join_hosts %}"{{ host }}"{% if not loop.last %},{% endif %}{% endfor %}]
 
-# recursors = [{% for host in consul_recursors | default([]) %}"{{ host }}"{% if not loop.last %},{% endif %}{% endfor %}]
-
 ca_file = "/etc/consul.d/consul-agent-ca.pem"
 cert_file = "/etc/consul.d/{{ clientized_cert_name }}.pem"
 key_file = "/etc/consul.d/{{ clientized_cert_name }}-key.pem"
 verify_incoming = true
 verify_outgoing = true
 verify_server_hostname = true
-
-acl = {
- enabled = true
- default_policy = "deny"
- enable_token_persistence = true
-}

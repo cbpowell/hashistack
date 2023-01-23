@@ -1,8 +1,9 @@
 # Full configuration options can be found at https://www.nomadproject.io/docs/configuration
 
-datacenter = "{{ nomad_dc_name }}"
+datacenter = "{{ nomad_dc_name | default('dc') }}"
 data_dir = "/opt/nomad/data"
-bind_addr = "0.0.0.0"
+bind_addr = "{{ nomad_bind_addr | default('0.0.0.0') }}"
+
 
 acl {
   enabled = true

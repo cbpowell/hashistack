@@ -203,6 +203,31 @@
   become: yes
   notify: Restart Consul
   
+- name: Template server config to /etc/consul.d/consul-server.hcl
+  ansible.builtin.template:
+    src: consul-server.hcl.j2
+    dest: /etc/consul.d/consul-server.hcl
+  vars:
+    consul_server_bool: "{{ (consul_mode == 'server') | lower }}"
+    consul_ui_value: "{{ (consul_ui | default(false)) | lower }}"
+    consul_bootstrap_output: "{{ 'bootstrap_expect=' + (consul_bootstrap_expect | string) if (consul_mode == 'server') else '' }}"
+  become: yes
+  when:
+    - consul_mode == 'server'
+  notify: Restart Consul
+  
+- name: Template client config to /etc/consul.d/consul-client.hcl
+  ansible.builtin.template:
+    src: consul-client.hcl.j2
+    dest: /etc/consul.d/consul-client.hcl
+  vars:
+    #consul_server_bool: "{{ (consul_mode == 'server') | lower }}"
+    consul_ui_value: "{{ (consul_ui | default(false)) | lower }}"
+  become: yes
+  when:
+    - consul_mode != 'server'
+  notify: Restart Consul
+  
 - name: Set final consul.d contents permissions, recursively
   file:
     dest: /etc/consul.d

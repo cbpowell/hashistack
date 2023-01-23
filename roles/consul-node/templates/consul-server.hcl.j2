@@ -1,0 +1,38 @@
+# server
+# This flag is used to control if an agent is in server or client mode.
+server = {{ consul_server_bool }}
+
+# bootstrap_expect
+{{ consul_bootstrap_output }}
+
+acl {
+  enabled = true
+  default_policy = "deny"
+  enable_token_persistence = true
+ 
+  tokens {
+    initial_management = "{{ consul_http_token }}"
+    agent = "{{ consul_http_token }}"
+  }
+}
+
+connect {
+  enabled = true
+}
+
+auto_config {
+  authorization {
+	  enabled = true
+		static {
+			oidc_discovery_url = "http://vault.lb.lab.theta142.com:8200/v1/identity/oidc"
+			bound_issuer = "http://vault.lb.lab.theta142.com:8200/v1/identity/oidc"
+			bound_audiences = ["{{ consul_dc_name }}"]
+			claim_mappings {
+				"/consul/hostname" = "node_name"
+			}
+			claim_assertions = [
+				"value.node_name == \"${node}\""
+			]
+		}
+	}
+}

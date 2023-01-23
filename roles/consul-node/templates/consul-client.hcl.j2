@@ -1,0 +1,11 @@
+acl {
+ enabled = true
+ default_policy = "deny"
+ enable_token_persistence = true
+}
+
+auto_config {
+  enabled = true
+  intro_token_file = "/consul/config/tokens/jwt"
+  server_addresses = [{% for host in consul_retry_join_hosts %}"{{ host }}"{% if not loop.last %},{% endif %}{% endfor %}]
+}
