@@ -1,0 +1,32 @@
+---
+# tasks file to configure OIDC
+- name: Wait for vault to unseal
+  ansible.builtin.shell: vault status
+  register: result
+  until: (result.stdout | from_json).sealed == false
+  retries: 10
+  delay: 2
+  environment:
+    VAULT_ADDR: "{{ vault_local_addr }}"
+    VAULT_FORMAT: json
+
+- debug:
+    var: result.stdout | from_json
+    verbosity: 1
+
+- pause:
+
+- name: Set OIDC Identity Token issuer value
+  # https://developer.hashicorp.com/vault/api-docs/secret/identity/tokens
+  ansible.builtin.shell: vault write identity/oidc/config issuer="{{ vault_token_issuer_url }}"
+  register: result
+  environment:
+    VAULT_ADDR: "{{ vault_local_addr }}"
+    VAULT_FORMAT: json
+  when: vault_token_issuer_url is defined
+
+- debug:
+    var: result.stdout
+    verbosity: 1
+    
+  
