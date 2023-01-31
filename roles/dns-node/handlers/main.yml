@@ -1,7 +1,0 @@
----
-# handlers file for dns-node
-- name: Restart CoreDNS
-  ansible.builtin.service:
-    name: coredns
-    state: restarted
-  become: yes
