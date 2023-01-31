@@ -29,7 +29,7 @@ consul:
 vault:
   enabled: true
   server_prefix: "{{ consul.server_prefix }}"
-  address: "http://vault.service.consul:8200"
+  address: "http://vault.lb.lab.theta142.com:8200"
   plugins:
     - https://github.com/1Password/vault-plugin-secrets-onepassword/releases/download/v1.0.0/vault-plugin-secrets-onepassword_1.0.0_linux_amd64.zip
 

@@ -20,6 +20,36 @@ connect {
   enabled = true
 }
 
+/*
+On one Consul Server:
+- Create OIDC key, with client ids for datacenter name (empiricist)
+  Ex: vault write identity/oidc/key/oidc-key-1 allowed_client_ids="empiricist"
+- Create a OIDC role, specifying above key and a template that looks at 
+  the entity metadata for the "consul_hostname" parameter
+  Ex: vault write identity/oidc/role/oidc-role-1 ttl=12h key="oidc-key-1" client_id="empiricist" template='{"consul": {"hostname": {{identity.entity.metadata.node}} } }'
+- Create OIDC policy with read access to the above role
+- Create an AppRole with the OIDC policy
+  Ex: vault write auth/approle/role/consul_jwt token_policies="oidc-policy"
+- Get AppRole role_id
+  Ex: vault read auth/approle/role/consul_jwt/role-id
+- Get AppRole secret_id
+  Ex: vault write -force auth/approle/role/consul_jwt/secret-id
+
+- Make one entity per Consul agent
+  Ex: vault write identity/entity @entity_template.json
+  With:
+    {
+      "name": "empiricist-nn3",
+      "metadata": {
+        "node_name": "empiricist-nn3"
+      },
+      "policies": ["oidc-role-1"]
+    }
+- Attach an alias to that entity for the AppRole auth
+  
+  
+*/
+
 auto_config {
   authorization {
 	  enabled = true

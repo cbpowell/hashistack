@@ -14,20 +14,13 @@
   hosts:
     - nomad_servers
     - nomad_clients
-  # roles:
-  #   - role: nomad-node
-  #     tasks_from: vault.yml
-  #     when: vault.enabled is true
-  #     vars:
-  #       #vault_nomad_regen_tokens: true
-  # tags: [ vault ]
-  
   tasks:
     - name: Run the Nomad/Vault server configuration
       include_role:
         name: nomad-node
         tasks_from: vault.yml
-      # vars:
-      #   vault_nomad_regen_tokens: true
+      vars:
+        vault_address: "{{ vault.address }}"
+        #vault_nomad_regen_tokens: true
       when: vault.enabled is true
       tags: vault

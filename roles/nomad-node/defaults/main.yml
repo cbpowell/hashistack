@@ -1,5 +1,6 @@
 ---
 # defaults file for nomad-node
+vault_address: http://vault.service.consul:8200
 
 # Default Metrics Config
 nomad_metrics: false
