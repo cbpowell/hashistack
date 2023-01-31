@@ -6,8 +6,18 @@ net_subdomain: "lab.{{ net_domain }}"
 home_tz: "America/Phoenix"
 
 # CoreDNS
-coredns_acl_zones: acl_zone private 10.7.0.0/16
-coredns_ttl: 1m
+coredns:
+  enable_tag: coredns.enabled
+  consul_dns_servers: ["10.7.3.2", "10.7.3.3", "10.7.3.4"]
+  upstream_dns: "10.7.3.1"
+  srv_proxy_tag: traefik.enable=true
+  srv_proxy: traefik
+  vers: "1.10.0"
+  acl_metadata_tag: coredns-consul
+  acl_ignore_tag: coredns.aclignore
+  acl_zones: acl_zone private 10.7.0.0/16
+  alias_tag: coredns.alias
+  ttl: 1m
   
 # Hashicorp
 ## All
@@ -105,6 +115,10 @@ scrypted:
 
 # Homepage
 homepage:
+  vers: latest
+  
+# Change Detection
+changedetection:
   vers: latest
   
 # Storage

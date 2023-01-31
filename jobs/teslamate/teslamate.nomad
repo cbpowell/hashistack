@@ -159,10 +159,9 @@ POSTGRES_PASSWORD=[% .Data.data.DATABASE_PASS %]
 EOH
       }
 
-      /*resources {
-        cpu    = 200
-        memory = 150
-      }*/
+      resources {
+        memory = 360
+      }
     }
   }
 } # job

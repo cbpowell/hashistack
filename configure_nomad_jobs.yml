@@ -33,6 +33,12 @@
     - import_role:
         name: nomad-job
       vars:
+        job: coredns
+      tags: [system, dns, coredns]
+      
+    - import_role:
+        name: nomad-job
+      vars:
         job: gitea
       tags: [service, dev, gitea]
     
