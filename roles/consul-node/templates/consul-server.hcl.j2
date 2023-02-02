@@ -16,6 +16,12 @@ acl {
   }
 }
 
+dns_config {
+  service_ttl {
+    "*" = "15s"
+  }
+}
+
 connect {
   enabled = true
 }
