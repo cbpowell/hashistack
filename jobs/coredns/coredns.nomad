@@ -89,7 +89,6 @@ EOH
 # Rewrite direct queries (i.e. service.direct.subdomain) directly to Consul DNS
 direct.{{ net_subdomain }}:53 {
   rewrite name substring .direct.{{ net_subdomain }} .service.consul answer auto
-  # forward . {% for host in coredns.consul_dns_servers %}{{ host }}:8600{% if not loop.last %} {% endif %}{% endfor %}
   forward . {{ coredns.upstream_dns }}
   errors
   cache 60
@@ -98,7 +97,6 @@ direct.{{ net_subdomain }}:53 {
 # Handle consul service itself
 consul.{{ net_subdomain }}:53 {
   rewrite name substring consul.{{ net_subdomain }} consul.service.consul answer auto
-  # forward . {% for host in coredns.consul_dns_servers %}{{ host }}:8600{% if not loop.last %} {% endif %}{% endfor %}
   forward . {{ coredns.upstream_dns }}
   errors
   cache 60
@@ -142,13 +140,10 @@ consul.{{ net_subdomain }}:53 {
 
 # This section is necessary - consul_catalog rewrites to consul domain!
 consul:53 {
-  log
-  
-  # forward . {% for host in coredns.consul_dns_servers %}{{ host }}:8600{% if not loop.last %} {% endif %}{% endfor %}
-  
   forward . {{ coredns.upstream_dns }}
   
   errors
+  # log
   cache 120
 }
 
